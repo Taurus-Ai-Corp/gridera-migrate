@@ -1,1072 +1,501 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Swarm Spawner — PQC Agent Playground</title>
-<style>
-/* ═══════════════════════════════════════════════════════════
-   CYBERPUNK TERMINAL THEME
-   ═══════════════════════════════════════════════════════════ */
-:root {
-  --bg: #0a0a0f;
-  --bg-card: #111118;
-  --bg-input: #16161e;
-  --border: #1e1e2a;
-  --border-hover: #2a2a3a;
-  --text: #c8c8d0;
-  --text-dim: #555566;
-  --text-bright: #eeeef0;
-  --neon-green: #00ffa3;
-  --neon-purple: #a78bfa;
-  --neon-amber: #f59e0b;
-  --neon-red: #ef4444;
-  --neon-cyan: #22d3ee;
-  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
-  --tier-color: var(--neon-green);
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font-mono);
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.5;
-  overflow-x: hidden;
-  min-height: 100vh;
-}
-::selection { background: rgba(0,255,163,0.2); }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ═══════════════════════════════════════════════════════════
-   HEADER
-   ═══════════════════════════════════════════════════════════ */
-.header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(10,10,15,0.95);
-  position: sticky; top: 0; z-index: 100;
-  backdrop-filter: blur(8px);
-}
-.logo {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 14px; letter-spacing: 3px; color: var(--neon-green);
-  text-transform: uppercase; font-weight: 600;
-}
-.logo-hex { font-size: 20px; }
-.logo-version {
-  font-size: 10px; color: var(--text-dim);
-  letter-spacing: 1px; margin-left: 4px;
-}
-.header-controls { display: flex; align-items: center; gap: 16px; }
-.tier-pills { display: flex; gap: 2px; background: var(--bg-input); border-radius: 6px; padding: 2px; }
-.tier-pill {
-  padding: 6px 14px; border-radius: 4px; font-size: 11px;
-  letter-spacing: 1px; cursor: pointer; border: none;
-  background: transparent; color: var(--text-dim);
-  font-family: var(--font-mono); transition: all 0.2s;
-  text-transform: uppercase;
-}
-.tier-pill:hover { color: var(--text); }
-.tier-pill.active-free { background: rgba(0,255,163,0.15); color: var(--neon-green); box-shadow: 0 0 8px rgba(0,255,163,0.1); }
-.tier-pill.active-pro { background: rgba(167,139,250,0.15); color: var(--neon-purple); box-shadow: 0 0 8px rgba(167,139,250,0.1); }
-.tier-pill.active-enterprise { background: rgba(245,158,11,0.15); color: var(--neon-amber); box-shadow: 0 0 8px rgba(245,158,11,0.1); }
-.spawn-btn {
-  padding: 8px 24px; border-radius: 6px; font-size: 13px;
-  letter-spacing: 2px; cursor: pointer; border: 2px solid var(--tier-color);
-  background: transparent; color: var(--tier-color);
-  font-family: var(--font-mono); font-weight: 700;
-  text-transform: uppercase; transition: all 0.3s;
-  position: relative; overflow: hidden;
-}
-.spawn-btn:hover:not(:disabled) {
-  background: rgba(0,255,163,0.1);
-  box-shadow: 0 0 20px rgba(0,255,163,0.2), 0 0 40px rgba(0,255,163,0.1);
-}
-.spawn-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.spawn-btn.running { animation: pulse-border 1s ease-in-out infinite; }
-@keyframes pulse-border {
-  0%, 100% { box-shadow: 0 0 8px rgba(0,255,163,0.2); }
-  50% { box-shadow: 0 0 20px rgba(0,255,163,0.4), 0 0 40px rgba(0,255,163,0.15); }
-}
-
-/* ═══════════════════════════════════════════════════════════
-   MAIN LAYOUT
-   ═══════════════════════════════════════════════════════════ */
-.main { display: flex; min-height: calc(100vh - 49px); }
-.controls-panel {
-  width: 280px; min-width: 280px;
-  border-right: 1px solid var(--border);
-  padding: 16px; overflow-y: auto;
-  background: var(--bg);
-}
-.stage { flex: 1; display: flex; flex-direction: column; }
-.animation-area {
-  flex: 1; min-height: 380px;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 24px; position: relative;
-}
-.code-panel {
-  border-top: 1px solid var(--border);
-  background: var(--bg-card);
-  padding: 0;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CONTROLS
-   ═══════════════════════════════════════════════════════════ */
-.section-label {
-  font-size: 10px; letter-spacing: 2px; color: var(--text-dim);
-  text-transform: uppercase; margin-bottom: 8px; margin-top: 16px;
-}
-.section-label:first-child { margin-top: 0; }
-.presets { display: flex; flex-direction: column; gap: 4px; }
-.preset-btn {
-  padding: 6px 10px; border-radius: 4px; font-size: 11px;
-  cursor: pointer; border: 1px solid var(--border);
-  background: var(--bg-input); color: var(--text-dim);
-  font-family: var(--font-mono); text-align: left; transition: all 0.2s;
-}
-.preset-btn:hover { border-color: var(--tier-color); color: var(--text); }
-.preset-btn.active { border-color: var(--tier-color); color: var(--tier-color); background: rgba(0,255,163,0.05); }
-.control-group { margin-top: 12px; }
-.control-label {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; color: var(--text-dim); margin-bottom: 6px;
-  letter-spacing: 1px; text-transform: uppercase;
-}
-.control-value { color: var(--tier-color); font-weight: 600; }
-input[type="range"] {
-  -webkit-appearance: none; width: 100%; height: 4px;
-  background: var(--bg-input); border-radius: 2px; outline: none;
-  border: 1px solid var(--border);
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 14px; height: 14px;
-  background: var(--tier-color); border-radius: 50%; cursor: pointer;
-  box-shadow: 0 0 6px rgba(0,255,163,0.3);
-}
-.radio-group { display: flex; flex-direction: column; gap: 4px; }
-.radio-opt {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; color: var(--text-dim); cursor: pointer;
-  padding: 4px 6px; border-radius: 4px; transition: all 0.15s;
-  position: relative;
-}
-.radio-opt:hover { color: var(--text); }
-.radio-opt.selected { color: var(--tier-color); }
-.radio-opt.locked { opacity: 0.35; cursor: not-allowed; }
-.radio-dot {
-  width: 12px; height: 12px; border-radius: 50%;
-  border: 2px solid var(--border); flex-shrink: 0; transition: all 0.15s;
-}
-.radio-opt.selected .radio-dot {
-  border-color: var(--tier-color);
-  background: var(--tier-color);
-  box-shadow: 0 0 6px rgba(0,255,163,0.3);
-}
-.lock-icon { margin-left: auto; font-size: 10px; }
-.toggle-wrap {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 0; position: relative; cursor: pointer;
-}
-.toggle-label { font-size: 12px; color: var(--text-dim); }
-.toggle {
-  width: 36px; height: 20px; border-radius: 10px;
-  background: var(--bg-input); border: 1px solid var(--border);
-  cursor: pointer; position: relative; transition: all 0.2s;
-  flex-shrink: 0;
-}
-.toggle.on { background: rgba(0,255,163,0.2); border-color: var(--neon-green); }
-.toggle-knob {
-  width: 14px; height: 14px; border-radius: 50%;
-  background: var(--text-dim); position: absolute; top: 2px; left: 2px;
-  transition: all 0.2s;
-}
-.toggle.on .toggle-knob { left: 18px; background: var(--neon-green); box-shadow: 0 0 6px rgba(0,255,163,0.4); }
-.toggle.locked { opacity: 0.35; cursor: not-allowed; }
-.tooltip {
-  position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
-  background: var(--bg-card); border: 1px solid var(--tier-color);
-  color: var(--tier-color); padding: 4px 10px; border-radius: 4px;
-  font-size: 10px; white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: opacity 0.2s; z-index: 10;
-}
-.locked:hover .tooltip { opacity: 1; }
-.divider { height: 1px; background: var(--border); margin: 16px 0; }
-
-/* ═══════════════════════════════════════════════════════════
-   ANIMATION STAGE
-   ═══════════════════════════════════════════════════════════ */
-.stage-placeholder { text-align: center; color: var(--text-dim); }
-.stage-placeholder-title {
-  font-size: 16px; color: var(--text); margin-bottom: 4px;
-  letter-spacing: 1px;
-}
-.stage-placeholder-sub { font-size: 12px; }
-.phase-label {
-  position: absolute; top: 16px; left: 24px;
-  font-size: 11px; letter-spacing: 2px; color: var(--tier-color);
-  text-transform: uppercase; opacity: 0; transition: opacity 0.3s;
-}
-.phase-label.visible { opacity: 1; }
-.agents-container {
-  display: flex; flex-wrap: wrap; gap: 16px;
-  justify-content: center; align-items: center;
-  padding: 16px; min-height: 120px;
-}
-.agent-node {
-  width: 52px; height: 52px; border-radius: 50%;
-  border: 2px solid var(--border); display: flex;
-  align-items: center; justify-content: center;
-  font-size: 11px; color: var(--text-dim);
-  position: relative; cursor: pointer;
-  transition: all 0.3s; opacity: 0; transform: scale(0);
-  background: var(--bg-card);
-}
-.agent-node.spawned { opacity: 1; transform: scale(1); }
-.agent-node.fast { border-color: var(--neon-green); color: var(--neon-green); }
-.agent-node.balanced { border-color: var(--neon-purple); color: var(--neon-purple); }
-.agent-node.deep { border-color: var(--neon-amber); color: var(--neon-amber); }
-.agent-node.running { animation: agent-pulse 0.8s ease-in-out infinite; }
-.agent-node.completed { box-shadow: 0 0 12px rgba(0,255,163,0.3); }
-.agent-node.failed { border-color: var(--neon-red); color: var(--neon-red); box-shadow: 0 0 12px rgba(239,68,68,0.3); }
-.agent-node.dying { opacity: 0; transform: scale(0.5); transition: all 0.5s; }
-.agent-node.selected { box-shadow: 0 0 0 3px rgba(0,255,163,0.3); }
-@keyframes agent-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-.agent-progress {
-  position: absolute; inset: -3px; border-radius: 50%;
-  background: conic-gradient(var(--tier-color) var(--progress, 0%), transparent 0%);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-}
-.agent-cert-icon {
-  position: absolute; top: -6px; right: -6px;
-  font-size: 12px; opacity: 0; transition: opacity 0.3s;
-}
-.agent-cert-icon.visible { opacity: 1; }
-.agent-model-label {
-  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
-  font-size: 8px; color: var(--text-dim); white-space: nowrap;
-  opacity: 0; transition: opacity 0.3s;
-}
-.agent-model-label.visible { opacity: 1; }
-.summary-stats {
-  font-size: 12px; color: var(--text-dim); text-align: center;
-  margin-top: 16px; opacity: 0; transition: opacity 0.5s;
-  letter-spacing: 1px;
-}
-.summary-stats.visible { opacity: 1; }
-.summary-stats .highlight { color: var(--tier-color); font-weight: 600; }
-
-/* Timeline Scrubber */
-.scrubber-container {
-  width: 100%; max-width: 600px; margin-top: 20px;
-  opacity: 0; transition: opacity 0.5s; pointer-events: none;
-}
-.scrubber-container.visible { opacity: 1; pointer-events: all; }
-.scrubber-labels {
-  display: flex; justify-content: space-between;
-  font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
-  text-transform: uppercase; margin-bottom: 4px;
-}
-.scrubber-label { cursor: pointer; transition: color 0.2s; }
-.scrubber-label.active { color: var(--tier-color); }
-.scrubber-label:hover { color: var(--text); }
-input.scrubber {
-  width: 100%; height: 6px; -webkit-appearance: none;
-  background: var(--bg-input); border: 1px solid var(--border);
-  border-radius: 3px; outline: none;
-}
-input.scrubber::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 16px; height: 16px;
-  background: var(--tier-color); border-radius: 50%; cursor: pointer;
-  box-shadow: 0 0 10px rgba(0,255,163,0.4);
-}
-
-/* Certificate Inspector */
-.cert-inspector {
-  width: 100%; max-width: 600px; margin-top: 16px;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 6px; overflow: hidden;
-  max-height: 0; opacity: 0; transition: all 0.3s;
-}
-.cert-inspector.visible { max-height: 600px; opacity: 1; }
-.cert-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; border-bottom: 1px solid var(--border);
-  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--tier-color);
-}
-.cert-body { padding: 12px 14px; font-size: 11px; }
-.cert-row {
-  display: flex; gap: 12px; padding: 4px 0;
-  border-bottom: 1px solid rgba(30,30,42,0.5);
-}
-.cert-key { color: var(--text-dim); min-width: 90px; flex-shrink: 0; }
-.cert-val { color: var(--text); word-break: break-all; }
-.cert-val.hex { font-size: 10px; color: var(--neon-cyan); cursor: pointer; }
-.cert-val.hex:hover { text-decoration: underline; }
-.verify-btn {
-  padding: 4px 12px; border-radius: 4px; font-size: 11px;
-  cursor: pointer; border: 1px solid var(--neon-green);
-  background: transparent; color: var(--neon-green);
-  font-family: var(--font-mono); margin-top: 8px; transition: all 0.2s;
-}
-.verify-btn:hover { background: rgba(0,255,163,0.1); }
-.verify-result { margin-left: 8px; font-size: 12px; }
-.verify-result.valid { color: var(--neon-green); }
-.verify-result.invalid { color: var(--neon-red); }
-
-/* ═══════════════════════════════════════════════════════════
-   CODE OUTPUT
-   ═══════════════════════════════════════════════════════════ */
-.code-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; border-bottom: 1px solid var(--border);
-  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--text-dim);
-}
-.copy-btn {
-  padding: 4px 12px; border-radius: 4px; font-size: 11px;
-  cursor: pointer; border: 1px solid var(--border);
-  background: var(--bg-input); color: var(--text-dim);
-  font-family: var(--font-mono); transition: all 0.2s;
-}
-.copy-btn:hover { border-color: var(--tier-color); color: var(--tier-color); }
-.copy-btn.copied { border-color: var(--neon-green); color: var(--neon-green); }
-.code-body {
-  padding: 16px; font-size: 12px; line-height: 1.7;
-  overflow-x: auto; white-space: pre;
-}
-.code-body .kw { color: var(--neon-green); }
-.code-body .str { color: var(--neon-amber); }
-.code-body .cmt { color: var(--text-dim); font-style: italic; }
-.code-body .typ { color: var(--neon-purple); }
-.code-body .num { color: var(--neon-cyan); }
-.install-bar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 16px; border-top: 1px solid var(--border);
-  font-size: 12px; color: var(--text-dim);
-  background: rgba(0,255,163,0.02);
-}
-.install-cmd { color: var(--neon-green); }
-
-/* ═══════════════════════════════════════════════════════════
-   ANIMATIONS
-   ═══════════════════════════════════════════════════════════ */
-@keyframes ripple {
-  0% { transform: scale(0); opacity: 0.6; }
-  100% { transform: scale(2.5); opacity: 0; }
-}
-.ripple {
-  position: absolute; width: 52px; height: 52px; border-radius: 50%;
-  border: 1px solid var(--tier-color); pointer-events: none;
-  animation: ripple 0.8s ease-out forwards;
-}
-@keyframes check-in {
-  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-  50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
-}
-.check-mark {
-  color: var(--neon-green); font-size: 18px; display: inline-block;
-  animation: check-in 0.4s ease-out forwards;
-}
-.hedera-line {
-  font-size: 10px; color: var(--text-dim); text-align: center;
-  margin-top: 8px; opacity: 0; transition: opacity 0.5s;
-  letter-spacing: 1px;
-}
-.hedera-line.visible { opacity: 1; }
-.hedera-line .topic { color: var(--neon-cyan); }
-</style>
-</head>
-<body>
-
-<!-- ═══════════════ HEADER ═══════════════ -->
-<div class="header">
-  <div class="logo">
-    <span class="logo-hex">&#x2B21;</span>
-    <span>Swarm Spawner</span>
-    <span class="logo-version">v0.3.1</span>
-  </div>
-  <div class="header-controls">
-    <div class="tier-pills">
-      <button class="tier-pill active-free" data-tier="free" onclick="setTier('free')">Free</button>
-      <button class="tier-pill" data-tier="pro" onclick="setTier('pro')">Pro</button>
-      <button class="tier-pill" data-tier="enterprise" onclick="setTier('enterprise')">Enterprise</button>
-    </div>
-    <button class="spawn-btn" id="spawnBtn" onclick="runSpawn()">SPAWN</button>
-  </div>
-</div>
-
-<!-- ═══════════════ MAIN ═══════════════ -->
-<div class="main">
-
-  <!-- Controls Panel -->
-  <div class="controls-panel">
-    <div class="section-label">Presets</div>
-    <div class="presets">
-      <button class="preset-btn" onclick="applyPreset('demo', this)">&#9654; Quick Demo</button>
-      <button class="preset-btn" onclick="applyPreset('pqc', this)">&#128272; PQC Showcase</button>
-      <button class="preset-btn" onclick="applyPreset('stress', this)">&#9889; Stress Test</button>
-      <button class="preset-btn" onclick="applyPreset('enterprise', this)">&#9733; Enterprise</button>
-    </div>
-    <div class="divider"></div>
-
-    <div class="control-group">
-      <div class="control-label">Tasks <span class="control-value" id="tasksVal">5</span></div>
-      <input type="range" min="1" max="20" value="5" id="tasksSlider" oninput="setState('tasks', +this.value)">
-    </div>
-
-    <div class="control-group">
-      <div class="control-label">Strategy</div>
-      <div class="radio-group" id="strategyGroup">
-        <div class="radio-opt selected" data-val="parallel" onclick="setRadio('strategy','parallel')"><div class="radio-dot"></div>parallel</div>
-        <div class="radio-opt" data-val="sequential" onclick="setRadio('strategy','sequential')"><div class="radio-dot"></div>sequential</div>
-        <div class="radio-opt" data-val="adaptive" onclick="setRadio('strategy','adaptive')"><div class="radio-dot"></div>adaptive</div>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <div class="control-label">Model Tier</div>
-      <div class="radio-group" id="modelTierGroup">
-        <div class="radio-opt selected" data-val="fast" onclick="setRadio('modelTier','fast')"><div class="radio-dot"></div>fast</div>
-        <div class="radio-opt" data-val="balanced" data-needs="pro" onclick="setRadio('modelTier','balanced')"><div class="radio-dot"></div>balanced <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></div>
-        <div class="radio-opt" data-val="deep" data-needs="pro" onclick="setRadio('modelTier','deep')"><div class="radio-dot"></div>deep <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="control-group">
-      <div class="toggle-wrap" onclick="toggleState('pqc')" id="pqcToggleWrap" data-needs="pro">
-        <span class="toggle-label">PQC Identity (ML-DSA-65) <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></span>
-        <div class="toggle" id="pqcToggle"><div class="toggle-knob"></div></div>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <div class="toggle-wrap" onclick="toggleState('audit')">
-        <span class="toggle-label">Hedera Audit (HCS)</span>
-        <div class="toggle on" id="auditToggle"><div class="toggle-knob"></div></div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-    <div class="section-label">Advanced</div>
-
-    <div class="control-group">
-      <div class="control-label">Max Parallel <span class="control-value" id="maxParVal">5</span></div>
-      <input type="range" min="1" max="10" value="5" id="maxParSlider" oninput="setState('maxParallel', +this.value)">
-    </div>
-
-    <div class="control-group">
-      <div class="control-label">Timeout <span class="control-value" id="timeoutVal">30s</span></div>
-      <input type="range" min="5" max="120" value="30" id="timeoutSlider" oninput="setState('timeout', +this.value)">
-    </div>
-
-    <div class="control-group">
-      <div class="control-label">Network</div>
-      <div class="radio-group" id="networkGroup">
-        <div class="radio-opt selected" data-val="testnet" onclick="setRadio('network','testnet')"><div class="radio-dot"></div>testnet</div>
-        <div class="radio-opt" data-val="mainnet" data-needs="pro" onclick="setRadio('network','mainnet')"><div class="radio-dot"></div>mainnet <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Stage -->
-  <div class="stage">
-    <div class="animation-area" id="animArea">
-      <div class="phase-label" id="phaseLabel"></div>
-      <div class="stage-placeholder" id="placeholder">
-        <div class="stage-placeholder-title">&#9671; Click SPAWN to begin &#9671;</div>
-        <div class="stage-placeholder-sub" id="configSummary">5 agents &middot; parallel &middot; fast tier</div>
-      </div>
-      <div class="agents-container" id="agentsContainer" style="display:none;"></div>
-      <div class="summary-stats" id="summaryStats"></div>
-      <div class="hedera-line" id="hederaLine">HCS &#8594; Topic <span class="topic">0.0.4847291</span> &middot; Seq #<span id="hederaSeq">1</span></div>
-      <div class="scrubber-container" id="scrubberWrap">
-        <div class="scrubber-labels">
-          <span class="scrubber-label" data-phase="0" onclick="scrubTo(0)">Enforce</span>
-          <span class="scrubber-label" data-phase="1" onclick="scrubTo(1)">Route</span>
-          <span class="scrubber-label" data-phase="2" onclick="scrubTo(2)">Birth</span>
-          <span class="scrubber-label" data-phase="3" onclick="scrubTo(3)">Execute</span>
-          <span class="scrubber-label" data-phase="4" onclick="scrubTo(4)">Death</span>
-          <span class="scrubber-label" data-phase="5" onclick="scrubTo(5)">Audit</span>
-        </div>
-        <input type="range" class="scrubber" min="0" max="5" step="1" value="0" id="scrubberInput" oninput="scrubTo(+this.value)">
-      </div>
-      <div class="cert-inspector" id="certInspector">
-        <div class="cert-header">
-          <span id="certTitle">Certificate Inspector</span>
-          <button class="copy-btn" onclick="copyCert()" style="font-size:10px;">Copy</button>
-        </div>
-        <div class="cert-body" id="certBody"></div>
-      </div>
-    </div>
-
-    <!-- Code Output -->
-    <div class="code-panel">
-      <div class="code-header">
-        <span>&#9654; Generated TypeScript</span>
-        <button class="copy-btn" id="codeCopyBtn" onclick="copyCode()">Copy</button>
-      </div>
-      <div class="code-body" id="codeOutput"></div>
-      <div class="install-bar">
-        <span class="install-cmd">npm i @taurus-ai/swarm-spawner</span>
-        <button class="copy-btn" onclick="copyInstall(this)">Copy</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Noble PQC Bundle (real @noble/post-quantum inlined) -->
-<script>
-var Noble=(()=>{var Gt=Object.defineProperty;var Xe=Object.getOwnPropertyDescriptor;var Ze=Object.getOwnPropertyNames;var ze=Object.prototype.hasOwnProperty;var qe=(t,e)=>{for(var n in e)Gt(t,n,{get:e[n],enumerable:!0})},Je=(t,e,n,o)=>{if(e&&typeof e=="object"||typeof e=="function")for(let r of Ze(e))!ze.call(t,r)&&r!==n&&Gt(t,r,{get:()=>e[r],enumerable:!(o=Xe(e,r))||o.enumerable});return t};var Qe=t=>Je(Gt({},"__esModule",{value:!0}),t);var Bn={};qe(Bn,{bytesToHex:()=>de,ml_dsa65:()=>je,sha256:()=>Ke});function tn(t){return t instanceof Uint8Array||ArrayBuffer.isView(t)&&t.constructor.name==="Uint8Array"}function Rt(t,e=""){if(!Number.isSafeInteger(t)||t<0){let n=e&&`"${e}" `;throw new Error(`${n}expected integer >= 0, got ${t}`)}}function L(t,e,n=""){let o=tn(t),r=t?.length,c=e!==void 0;if(!o||c&&r!==e){let s=n&&`"${n}" `,f=c?` of length ${e}`:"",h=o?`length=${r}`:`type=${typeof t}`;throw new Error(s+"expected Uint8Array"+f+", got "+h)}return t}function ht(t,e=!0){if(t.destroyed)throw new Error("Hash instance has been destroyed");if(e&&t.finished)throw new Error("Hash#digest() has already been called")}function _t(t,e){L(t,void 0,"digestInto() output");let n=e.outputLen;if(t.length<n)throw new Error('"digestInto() output" expected to be of length >='+n)}function le(t){return new Uint32Array(t.buffer,t.byteOffset,Math.floor(t.byteLength/4))}function ot(...t){for(let e=0;e<t.length;e++)t[e].fill(0)}function kt(t){return new DataView(t.buffer,t.byteOffset,t.byteLength)}function Z(t,e){return t<<32-e|t>>>e}var ue=new Uint8Array(new Uint32Array([287454020]).buffer)[0]===68;function en(t){return t<<24&4278190080|t<<8&16711680|t>>>8&65280|t>>>24&255}function nn(t){for(let e=0;e<t.length;e++)t[e]=en(t[e]);return t}var vt=ue?t=>t:nn,on=typeof Uint8Array.from([]).toHex=="function"&&typeof Uint8Array.fromHex=="function",rn=Array.from({length:256},(t,e)=>e.toString(16).padStart(2,"0"));function de(t){if(L(t),on)return t.toHex();let e="";for(let n=0;n<t.length;n++)e+=rn[t[n]];return e}function Dt(...t){let e=0;for(let o=0;o<t.length;o++){let r=t[o];L(r),e+=r.length}let n=new Uint8Array(e);for(let o=0,r=0;o<t.length;o++){let c=t[o];n.set(c,r),r+=c.length}return n}function It(t,e={}){let n=(r,c)=>t(c).update(r).digest(),o=t(void 0);return n.outputLen=o.outputLen,n.blockLen=o.blockLen,n.create=r=>t(r),Object.assign(n,e),Object.freeze(n)}function he(t=32){let e=typeof globalThis=="object"?globalThis.crypto:null;if(typeof e?.getRandomValues!="function")throw new Error("crypto.getRandomValues must be defined");return e.getRandomValues(new Uint8Array(t))}var bt=t=>({oid:Uint8Array.from([6,9,96,134,72,1,101,3,4,2,t])});function xe(t,e=""){if(typeof t!="boolean"){let n=e&&`"${e}" `;throw new Error(n+"expected boolean, got type="+typeof t)}return t}var Ot=BigInt(4294967295),pe=BigInt(32);function sn(t,e=!1){return e?{h:Number(t&Ot),l:Number(t>>pe&Ot)}:{h:Number(t>>pe&Ot)|0,l:Number(t&Ot)|0}}function be(t,e=!1){let n=t.length,o=new Uint32Array(n),r=new Uint32Array(n);for(let c=0;c<n;c++){let{h:s,l:f}=sn(t[c],e);[o[c],r[c]]=[s,f]}return[o,r]}var ge=(t,e,n)=>t<<n|e>>>32-n,ye=(t,e,n)=>e<<n|t>>>32-n,we=(t,e,n)=>e<<n-32|t>>>64-n,me=(t,e,n)=>t<<n-32|e>>>64-n;var cn=BigInt(0),gt=BigInt(1),fn=BigInt(2),an=BigInt(7),ln=BigInt(256),un=BigInt(113),Ee=[],Te=[],Le=[];for(let t=0,e=gt,n=1,o=0;t<24;t++){[n,o]=[o,(2*n+3*o)%5],Ee.push(2*(5*o+n)),Te.push((t+1)*(t+2)/2%64);let r=cn;for(let c=0;c<7;c++)e=(e<<gt^(e>>an)*un)%ln,e&fn&&(r^=gt<<(gt<<BigInt(c))-gt);Le.push(r)}var He=be(Le,!0),dn=He[0],hn=He[1],Ae=(t,e,n)=>n>32?we(t,e,n):ge(t,e,n),Be=(t,e,n)=>n>32?me(t,e,n):ye(t,e,n);function xn(t,e=24){let n=new Uint32Array(10);for(let o=24-e;o<24;o++){for(let s=0;s<10;s++)n[s]=t[s]^t[s+10]^t[s+20]^t[s+30]^t[s+40];for(let s=0;s<10;s+=2){let f=(s+8)%10,h=(s+2)%10,A=n[h],p=n[h+1],b=Ae(A,p,1)^n[f],M=Be(A,p,1)^n[f+1];for(let T=0;T<50;T+=10)t[s+T]^=b,t[s+T+1]^=M}let r=t[2],c=t[3];for(let s=0;s<24;s++){let f=Te[s],h=Ae(r,c,f),A=Be(r,c,f),p=Ee[s];r=t[p],c=t[p+1],t[p]=h,t[p+1]=A}for(let s=0;s<50;s+=10){for(let f=0;f<10;f++)n[f]=t[s+f];for(let f=0;f<10;f++)t[s+f]^=~n[(f+2)%10]&n[(f+4)%10]}t[0]^=dn[o],t[1]^=hn[o]}ot(n)}var jt=class t{state;pos=0;posOut=0;finished=!1;state32;destroyed=!1;blockLen;suffix;outputLen;enableXOF=!1;rounds;constructor(e,n,o,r=!1,c=24){if(this.blockLen=e,this.suffix=n,this.outputLen=o,this.enableXOF=r,this.rounds=c,Rt(o,"outputLen"),!(0<e&&e<200))throw new Error("only keccak-f1600 function is supported");this.state=new Uint8Array(200),this.state32=le(this.state)}clone(){return this._cloneInto()}keccak(){vt(this.state32),xn(this.state32,this.rounds),vt(this.state32),this.posOut=0,this.pos=0}update(e){ht(this),L(e);let{blockLen:n,state:o}=this,r=e.length;for(let c=0;c<r;){let s=Math.min(n-this.pos,r-c);for(let f=0;f<s;f++)o[this.pos++]^=e[c++];this.pos===n&&this.keccak()}return this}finish(){if(this.finished)return;this.finished=!0;let{state:e,suffix:n,pos:o,blockLen:r}=this;e[o]^=n,(n&128)!==0&&o===r-1&&this.keccak(),e[r-1]^=128,this.keccak()}writeInto(e){ht(this,!1),L(e),this.finish();let n=this.state,{blockLen:o}=this;for(let r=0,c=e.length;r<c;){this.posOut>=o&&this.keccak();let s=Math.min(o-this.posOut,c-r);e.set(n.subarray(this.posOut,this.posOut+s),r),this.posOut+=s,r+=s}return e}xofInto(e){if(!this.enableXOF)throw new Error("XOF is not possible for this instance");return this.writeInto(e)}xof(e){return Rt(e),this.xofInto(new Uint8Array(e))}digestInto(e){if(_t(e,this),this.finished)throw new Error("digest() was already called");return this.writeInto(e),this.destroy(),e}digest(){return this.digestInto(new Uint8Array(this.outputLen))}destroy(){this.destroyed=!0,ot(this.state)}_cloneInto(e){let{blockLen:n,suffix:o,outputLen:r,rounds:c,enableXOF:s}=this;return e||=new t(n,o,r,s,c),e.state32.set(this.state32),e.pos=this.pos,e.posOut=this.posOut,e.finished=this.finished,e.rounds=c,e.suffix=o,e.outputLen=r,e.enableXOF=s,e.destroyed=this.destroyed,e}};var _e=(t,e,n,o={})=>It((r={})=>new jt(e,t,r.dkLen===void 0?n:r.dkLen,!0),o),ke=_e(31,168,16,bt(11)),R=_e(31,136,32,bt(12));function Pt(t){if(!Number.isSafeInteger(t)||t<0||t>4294967295)throw new Error("wrong u32 integer:"+t);return t}function Oe(t){return Pt(t),(t&t-1)===0&&t!==0}function $t(t,e){Pt(t);let n=0;for(let o=0;o<e;o++,t>>>=1)n=n<<1|t&1;return n}function Se(t){return Pt(t),31-Math.clz32(t)}function Ie(t){let e=t.length;if(e<2||!Oe(e))throw new Error("n must be a power of 2 and greater than 1. Got "+e);let n=Se(e);for(let o=0;o<e;o++){let r=$t(o,n);if(o<r){let c=t[o];t[o]=t[r],t[r]=c}}return t}var Kt=(t,e)=>{let{N:n,roots:o,dit:r,invertButterflies:c=!1,skipStages:s=0,brp:f=!0}=e,h=Se(n);if(!Oe(n))throw new Error("FFT: Polynomial size should be power of two");let A=r!==c;return p=>{if(p.length!==n)throw new Error("FFT: wrong Polynomial length");r&&f&&Ie(p);for(let b=0,M=1;b<h-s;b++){let T=r?b+1+s:h-b,$=1<<T,K=$>>1,At=n>>T;for(let ft=0;ft<n;ft+=$)for(let g=0,w=M++;g<K;g++){let S=c?r?n-w:w:g*At,W=ft+g,v=ft+g+K,Y=o[S],N=p[v],H=p[W];if(A){let F=t.mul(N,Y);p[W]=t.add(H,F),p[v]=t.sub(H,F)}else c?(p[W]=t.add(N,H),p[v]=t.mul(t.sub(N,H),Y)):(p[W]=t.add(H,N),p[v]=t.mul(t.sub(H,N),Y))}}return!r&&f&&Ie(p),p}};var St=L;var Vt=he;function Wt(t,e){if(t.length!==e.length)return!1;let n=0;for(let o=0;o<t.length;o++)n|=t[o]^e[o];return n===0}function Yt(t){if(Object.prototype.toString.call(t)!=="[object Object]")throw new TypeError("expected valid options object")}function Ut(t){Yt(t),t.context!==void 0&&L(t.context,void 0,"opts.context")}function Ct(t){Ut(t),t.extraEntropy!==!1&&t.extraEntropy!==void 0&&L(t.extraEntropy,void 0,"opts.extraEntropy")}function yt(t,...e){let n=r=>typeof r=="number"?r:r.bytesLen,o=e.reduce((r,c)=>r+n(c),0);return{bytesLen:o,encode:r=>{let c=new Uint8Array(o);for(let s=0,f=0;s<e.length;s++){let h=e[s],A=n(h),p=typeof h=="number"?r[s]:h.encode(r[s]);L(p,A,t),c.set(p,f),typeof h!="number"&&p.fill(0),f+=A}return c},decode:r=>{L(r,o,t);let c=[];for(let s of e){let f=n(s),h=r.subarray(0,f);c.push(typeof s=="number"?h:s.decode(h)),r=r.subarray(f)}return c}}}function at(t,e){let n=e*t.bytesLen;return{bytesLen:n,encode:o=>{if(o.length!==e)throw new RangeError(`vecCoder.encode: wrong length=${o.length}. Expected: ${e}`);let r=new Uint8Array(n);for(let c=0,s=0;c<o.length;c++){let f=t.encode(o[c]);r.set(f,s),f.fill(0),s+=f.length}return r},decode:o=>{L(o,n);let r=[];for(let c=0;c<o.length;c+=t.bytesLen)r.push(t.decode(o.subarray(c,c+t.bytesLen)));return r}}}function z(...t){for(let e of t)if(Array.isArray(e))for(let n of e)n.fill(0);else e.fill(0)}function Xt(t){if(!Number.isSafeInteger(t)||t<0||t>32)throw new RangeError(`expected bits in [0..32], got ${t}`);return t===32?4294967295:~(-1<<t)>>>0}var Ue=Uint8Array.of();function Zt(t,e=Ue){if(L(t),L(e),e.length>255)throw new RangeError("context should be 255 bytes or less");return Dt(new Uint8Array([0,e.length]),e,t)}var pn=Uint8Array.from([6,9,96,134,72,1,101,3,4,2]);function Ce(t,e=0){if(!t.oid||!Wt(t.oid.subarray(0,10),pn))throw new Error("hash.oid is invalid: expected NIST hash");let n=t.outputLen*8/2;if(e>n)throw new Error("Pre-hash security strength too low: "+n+", required: "+e)}function zt(t,e,n=Ue){if(L(e),L(n),n.length>255)throw new RangeError("context should be 255 bytes or less");let o=t(e);return Dt(new Uint8Array([1,n.length]),n,t.oid,o)}var Me=t=>{let{newPoly:e,N:n,Q:o,F:r,ROOT_OF_UNITY:c,brvBits:s,isKyber:f}=t,h=(g,w=o)=>{let S=g%w|0;return(S>=0?S|0:w+S|0)|0},A=(g,w=o)=>{let S=h(g,w)|0;return(S>w>>1?S-w|0:S)|0};function p(){let g=e(n);for(let w=0;w<n;w++){let S=$t(w,s),W=BigInt(c)**BigInt(S)%BigInt(o);g[w]=Number(W)|0}return g}let b=p(),M={add:(g,w)=>h((g|0)+(w|0))|0,sub:(g,w)=>h((g|0)-(w|0))|0,mul:(g,w)=>h((g|0)*(w|0))|0,inv:g=>{throw new Error("not implemented")}},T={N:n,roots:b,invertButterflies:!0,skipStages:f?1:0,brp:!1},$=Kt(M,{dit:!1,...T}),K=Kt(M,{dit:!0,...T});return{mod:h,smod:A,nttZetas:b,NTT:{encode:g=>$(g),decode:g=>{K(g);for(let w=0;w<g.length;w++)g[w]=h(r*g[w]);return g}},bitsCoder:(g,w)=>{let S=Xt(g),W=g*(n/8);return{bytesLen:W,encode:v=>{let Y=new Uint8Array(W);for(let N=0,H=0,F=0,ut=0;N<v.length;N++)for(H|=(w.encode(v[N])&S)<<F,F+=g;F>=8;F-=8,H>>=8)Y[ut++]=H&Xt(F);return Y},decode:v=>{let Y=e(n);for(let N=0,H=0,F=0,ut=0;N<v.length;N++)for(H|=v[N]<<F,F+=8;F>=g;F-=g,H>>=g)Y[ut++]=w.decode(H&S);return Y}}}}},Ne=t=>(e,n)=>{n||(n=t.blockLen);let o=new Uint8Array(e.length+2);o.set(e);let r=e.length,c=new Uint8Array(n),s=t.create({}),f=0,h=0;return{stats:()=>({calls:f,xofs:h}),get:(A,p)=>(o[r+0]=A,o[r+1]=p,s.destroy(),s=t.create({}).update(o),f++,()=>(h++,s.xofInto(c))),clean:()=>{s.destroy(),z(c,o)}}},Fe=Ne(ke),Ge=Ne(R);function Re(t){Yt(t),t.externalMu!==void 0&&xe(t.externalMu,"opts.externalMu")}var E=256,ct=8380417,bn=1753,gn=8347681,lt=13,qt=Math.floor((ct-1)/88)|0,Jt=Math.floor((ct-1)/32)|0,yn={2:{K:4,L:4,D:lt,GAMMA1:2**17,GAMMA2:qt,TAU:39,ETA:2,OMEGA:80},3:{K:6,L:5,D:lt,GAMMA1:2**19,GAMMA2:Jt,TAU:49,ETA:4,OMEGA:55},5:{K:8,L:7,D:lt,GAMMA1:2**19,GAMMA2:Jt,TAU:60,ETA:2,OMEGA:75}},P=t=>new Int32Array(t),m=Me({N:E,Q:ct,F:gn,ROOT_OF_UNITY:bn,newPoly:P,isKyber:!1,brvBits:8}),ve=t=>t,wt=(t,e=ve,n=ve)=>m.bitsCoder(t,{encode:o=>e(n(o)),decode:o=>n(e(o))}),rt=(t,e)=>{for(let n=0;n<t.length;n++)t[n]=m.mod(t[n]+e[n]);return t},De=(t,e)=>{for(let n=0;n<t.length;n++)t[n]=m.mod(t[n]-e[n]);return t},wn=t=>{for(let e=0;e<E;e++)t[e]<<=lt;return t},mt=(t,e)=>{for(let n=0;n<E;n++)if(Math.abs(m.smod(t[n]))>=e)return!0;return!1},st=(t,e)=>{let n=P(E);for(let o=0;o<t.length;o++)n[o]=m.mod(t[o]*e[o]);return n};function Mt(t){let e=P(E);for(let n=0;n<E;){let o=t();if(o.length%3)throw new Error("RejNTTPoly: unaligned block");for(let r=0;n<E&&r<=o.length-3;r+=3){let c=(o[r+0]|o[r+1]<<8|o[r+2]<<16)&8388607;c<ct&&(e[n++]=c)}}return e}function mn(t){let{K:e,L:n,GAMMA1:o,GAMMA2:r,TAU:c,ETA:s,OMEGA:f}=t,{CRH_BYTES:h,TR_BYTES:A,C_TILDE_BYTES:p,XOF128:b,XOF256:M,securityLevel:T}=t;if(![2,4].includes(s))throw new Error("Wrong ETA");if(![1<<17,1<<19].includes(o))throw new Error("Wrong GAMMA1");if(![qt,Jt].includes(r))throw new Error("Wrong GAMMA2");let $=c*s,K=i=>{let u=m.mod(i),a=m.smod(u,2*r)|0;return u-a===ct-1?{r1:0,r0:a-1|0}:{r1:Math.floor((u-a)/(2*r))|0,r0:a}},At=i=>K(i).r1,ft=i=>K(i).r0,g=(i,u)=>i<=r||i>ct-r||i===ct-r&&u===0?0:1,w=(i,u)=>{let a=Math.floor((ct-1)/(2*r)),{r1:l,r0:x}=K(u);return i===1?x>0?m.mod(l+1,a)|0:m.mod(l-1,a)|0:l|0},S=i=>{let u=m.mod(i),a=m.smod(u,2**lt)|0;return{r1:Math.floor((u-a)/2**lt)|0,r0:a}},W={bytesLen:f+e,encode:i=>{if(i===!1)throw new Error("hint.encode: hint is false");let u=new Uint8Array(f+e);for(let a=0,l=0;a<e;a++){for(let x=0;x<E;x++)i[a][x]!==0&&(u[l++]=x);u[f+a]=l}return u},decode:i=>{let u=[],a=0;for(let l=0;l<e;l++){let x=P(E);if(i[f+l]<a||i[f+l]>f)return!1;for(let y=a;y<i[f+l];y++){if(y>a&&i[y]<=i[y-1])return!1;x[i[y]]=1}a=i[f+l],u.push(x)}for(let l=a;l<f;l++)if(i[l]!==0)return!1;return u}},v=wt(s===2?3:4,i=>s-i,i=>{if(!(-s<=i&&i<=s))throw new Error(`malformed key s1/s3 ${i} outside of ETA range [${-s}, ${s}]`);return i}),Y=wt(13,i=>(1<<lt-1)-i),N=wt(10),H=wt(o===1<<17?18:20,i=>m.smod(o-i)),F=wt(r===qt?6:4),ut=at(F,e),Bt=yt("publicKey",32,at(N,e)),Et=yt("secretKey",32,32,A,at(v,n),at(v,e),at(Y,e)),Tt=yt("signature",p,at(H,n),W),ee=s===2?i=>i<15?2-i%5:!1:i=>i<9?4-i:!1;function ne(i){let u=P(E);for(let a=0;a<E;){let l=i();for(let x=0;a<E&&x<l.length;x+=1){let y=ee(l[x]&15),U=ee(l[x]>>4&15);y!==!1&&(u[a++]=y),a<E&&U!==!1&&(u[a++]=U)}}return u}let oe=i=>{let u=P(E),a=R.create({}).update(i),l=new Uint8Array(R.blockLen);a.xofInto(l);let x=l.slice(0,8);for(let y=E-c,U=8,G=0,_=0;y<E;y++){let k=y+1;for(;k>y;)k=l[U++],!(U<R.blockLen)&&(a.xofInto(l),U=0);u[y]=u[k],u[k]=1-((x[G]>>_++&1)<<1),_>=8&&(G++,_=0)}return u},re=i=>{let u=P(E),a=P(E);for(let l=0;l<i.length;l++){let{r0:x,r1:y}=S(i[l]);u[l]=x,a[l]=y}return{r0:u,r1:a}},Ve=(i,u)=>{for(let a=0;a<E;a++)i[a]=w(u[a],i[a]);return i},We=(i,u)=>{let a=P(E),l=0;for(let x=0;x<E;x++){let y=g(i[x],u[x]);a[x]=y,l+=y}return{v:a,cnt:l}},se=32,ce=yt("seed",32,64,32),X={info:{type:"internal-ml-dsa"},lengths:{secretKey:Et.bytesLen,publicKey:Bt.bytesLen,seed:32,signature:Tt.bytesLen,signRand:se},keygen:i=>{let u=new Uint8Array(34),a=i===void 0;a&&(i=Vt(32)),St(i,32,"seed"),u.set(i),a&&z(i),u[32]=e,u[33]=n;let[l,x,y]=ce.decode(R(u,{dkLen:ce.bytesLen})),U=M(x),G=[];for(let d=0;d<n;d++)G.push(ne(U.get(d&255,d>>8&255)));let _=[];for(let d=n;d<n+e;d++)_.push(ne(U.get(d&255,d>>8&255)));let k=G.map(d=>m.NTT.encode(d.slice())),I=[],C=[],Q=b(l),O=P(E);for(let d=0;d<e;d++){z(O);for(let j=0;j<n;j++){let J=Mt(Q.get(j,d));rt(O,st(J,k[j]))}m.NTT.decode(O);let{r0:V,r1:D}=re(rt(O,_[d]));I.push(V),C.push(D)}let q=Bt.encode([l,C]),tt=R(q,{dkLen:A}),dt=Et.encode([l,y,tt,G,_,I]);return Q.clean(),U.clean(),z(l,x,y,G,_,k,O,I,C,tt,u),{publicKey:q,secretKey:dt}},getPublicKey:i=>{let[u,a,l,x,y,U]=Et.decode(i),G=b(u),_=x.map(C=>m.NTT.encode(C.slice())),k=[],I=P(E);for(let C=0;C<e;C++){I.fill(0);for(let O=0;O<n;O++){let q=Mt(G.get(O,C));rt(I,st(q,_[O]))}m.NTT.decode(I),rt(I,y[C]);let{r1:Q}=re(I);k.push(Q)}return G.clean(),z(I,_,U,x,y),Bt.encode([u,k])},sign:(i,u,a={})=>{Ct(a),Re(a);let{extraEntropy:l,externalMu:x=!1}=a,[y,U,G,_,k,I]=Et.decode(u),C=[],Q=b(y);for(let d=0;d<e;d++){let V=[];for(let D=0;D<n;D++)V.push(Mt(Q.get(D,d)));C.push(V)}Q.clean();for(let d=0;d<n;d++)m.NTT.encode(_[d]);for(let d=0;d<e;d++)m.NTT.encode(k[d]),m.NTT.encode(I[d]);let O=x?i:R.create({dkLen:h}).update(G).update(i).digest(),q=l===!1?new Uint8Array(32):l===void 0?Vt(se):l;St(q,32,"extraEntropy");let tt=R.create({dkLen:h}).update(U).update(q).update(O).digest();St(tt,h);let dt=M(tt,H.bytesLen);t:for(let d=0;;){let V=[];for(let B=0;B<n;B++,d++)V.push(H.decode(dt.get(d&255,d>>8)()));let D=V.map(B=>m.NTT.encode(B.slice())),j=[];for(let B=0;B<e;B++){let pt=P(E);for(let nt=0;nt<n;nt++)rt(pt,st(C[B][nt],D[nt]));m.NTT.decode(pt),j.push(pt)}let J=j.map(B=>B.map(At)),xt=R.create({dkLen:p}).update(O).update(ut.encode(J)).digest(),Lt=m.NTT.encode(oe(xt)),Ht=_.map(B=>st(B,Lt));for(let B=0;B<n;B++)if(rt(m.NTT.decode(Ht[B]),V[B]),mt(Ht[B],o-$))continue t;let ie=0,Ft=[];for(let B=0;B<e;B++){let pt=m.NTT.decode(st(k[B],Lt)),nt=De(j[B],pt).map(ft);if(mt(nt,r-$))continue t;let fe=m.NTT.decode(st(I[B],Lt));if(mt(fe,r))continue t;rt(nt,fe);let ae=We(nt,J[B]);Ft.push(ae.v),ie+=ae.cnt}if(ie>f)continue;dt.clean();let Ye=Tt.encode([xt,Ht,Ft]);return z(xt,Ht,Ft,Lt,J,j,D,V,tt,_,k,I,...C),x||z(O),Ye}throw new Error("Unreachable code path reached, report this error")},verify:(i,u,a,l={})=>{Re(l);let{externalMu:x=!1}=l,[y,U]=Bt.decode(a),G=R(a,{dkLen:A});if(i.length!==Tt.bytesLen)return!1;let[_,k,I]=Tt.decode(i);if(I===!1)return!1;for(let d=0;d<n;d++)if(mt(k[d],o-$))return!1;let C=x?u:R.create({dkLen:h}).update(G).update(u).digest(),Q=m.NTT.encode(oe(_)),O=k.map(d=>d.slice());for(let d=0;d<n;d++)m.NTT.encode(O[d]);let q=[],tt=b(y);for(let d=0;d<e;d++){let V=st(m.NTT.encode(wn(U[d])),Q),D=P(E);for(let J=0;J<n;J++){let xt=Mt(tt.get(J,d));rt(D,st(xt,O[J]))}let j=m.NTT.decode(De(D,V));q.push(Ve(j,I[d]))}tt.clean();let dt=R.create({dkLen:p}).update(C).update(ut.encode(q)).digest();for(let d of I)if(!(d.reduce((D,j)=>D+j,0)<=f))return!1;for(let d of k)if(mt(d,o-$))return!1;return Wt(_,dt)}};return{info:{type:"ml-dsa"},internal:X,securityLevel:T,keygen:X.keygen,lengths:X.lengths,getPublicKey:X.getPublicKey,sign:(i,u,a={})=>{Ct(a);let l=Zt(i,a.context),x=X.sign(l,u,a);return z(l),x},verify:(i,u,a,l={})=>(Ut(l),X.verify(i,Zt(u,l.context),a)),prehash:i=>(Ce(i,T),{info:{type:"hashml-dsa"},securityLevel:T,lengths:X.lengths,keygen:X.keygen,getPublicKey:X.getPublicKey,sign:(u,a,l={})=>{Ct(l);let x=zt(i,u,l.context),y=X.sign(x,a,l);return z(x),y},verify:(u,a,l,x={})=>(Ut(x),X.verify(u,zt(i,a,x.context),l))})}}var je=mn({...yn[3],CRH_BYTES:64,TR_BYTES:64,C_TILDE_BYTES:48,XOF128:Fe,XOF256:Ge,securityLevel:192});function Pe(t,e,n){return t&e^~t&n}function $e(t,e,n){return t&e^t&n^e&n}var Nt=class{blockLen;outputLen;padOffset;isLE;buffer;view;finished=!1;length=0;pos=0;destroyed=!1;constructor(e,n,o,r){this.blockLen=e,this.outputLen=n,this.padOffset=o,this.isLE=r,this.buffer=new Uint8Array(e),this.view=kt(this.buffer)}update(e){ht(this),L(e);let{view:n,buffer:o,blockLen:r}=this,c=e.length;for(let s=0;s<c;){let f=Math.min(r-this.pos,c-s);if(f===r){let h=kt(e);for(;r<=c-s;s+=r)this.process(h,s);continue}o.set(e.subarray(s,s+f),this.pos),this.pos+=f,s+=f,this.pos===r&&(this.process(n,0),this.pos=0)}return this.length+=e.length,this.roundClean(),this}digestInto(e){ht(this),_t(e,this),this.finished=!0;let{buffer:n,view:o,blockLen:r,isLE:c}=this,{pos:s}=this;n[s++]=128,ot(this.buffer.subarray(s)),this.padOffset>r-s&&(this.process(o,0),s=0);for(let b=s;b<r;b++)n[b]=0;o.setBigUint64(r-8,BigInt(this.length*8),c),this.process(o,0);let f=kt(e),h=this.outputLen;if(h%4)throw new Error("_sha2: outputLen must be aligned to 32bit");let A=h/4,p=this.get();if(A>p.length)throw new Error("_sha2: outputLen bigger than state");for(let b=0;b<A;b++)f.setUint32(4*b,p[b],c)}digest(){let{buffer:e,outputLen:n}=this;this.digestInto(e);let o=e.slice(0,n);return this.destroy(),o}_cloneInto(e){e||=new this.constructor,e.set(...this.get());let{blockLen:n,buffer:o,length:r,finished:c,destroyed:s,pos:f}=this;return e.destroyed=s,e.finished=c,e.length=r,e.pos=f,r%n&&e.buffer.set(o),e}clone(){return this._cloneInto()}},et=Uint32Array.from([1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]);var An=Uint32Array.from([1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]),it=new Uint32Array(64),Qt=class extends Nt{constructor(e){super(64,e,8,!1)}get(){let{A:e,B:n,C:o,D:r,E:c,F:s,G:f,H:h}=this;return[e,n,o,r,c,s,f,h]}set(e,n,o,r,c,s,f,h){this.A=e|0,this.B=n|0,this.C=o|0,this.D=r|0,this.E=c|0,this.F=s|0,this.G=f|0,this.H=h|0}process(e,n){for(let b=0;b<16;b++,n+=4)it[b]=e.getUint32(n,!1);for(let b=16;b<64;b++){let M=it[b-15],T=it[b-2],$=Z(M,7)^Z(M,18)^M>>>3,K=Z(T,17)^Z(T,19)^T>>>10;it[b]=K+it[b-7]+$+it[b-16]|0}let{A:o,B:r,C:c,D:s,E:f,F:h,G:A,H:p}=this;for(let b=0;b<64;b++){let M=Z(f,6)^Z(f,11)^Z(f,25),T=p+M+Pe(f,h,A)+An[b]+it[b]|0,K=(Z(o,2)^Z(o,13)^Z(o,22))+$e(o,r,c)|0;p=A,A=h,h=f,f=s+T|0,s=c,c=r,r=o,o=T+K|0}o=o+this.A|0,r=r+this.B|0,c=c+this.C|0,s=s+this.D|0,f=f+this.E|0,h=h+this.F|0,A=A+this.G|0,p=p+this.H|0,this.set(o,r,c,s,f,h,A,p)}roundClean(){ot(it)}destroy(){this.set(0,0,0,0,0,0,0,0),ot(this.buffer)}},te=class extends Qt{A=et[0]|0;B=et[1]|0;C=et[2]|0;D=et[3]|0;E=et[4]|0;F=et[5]|0;G=et[6]|0;H=et[7]|0;constructor(){super(32)}};var Ke=It(()=>new te,bt(1));return Qe(Bn);})();
-/*! Bundled license information:
-
-@noble/hashes/utils.js:
-  (*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
-
-@noble/curves/utils.js:
-  (*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
-
-@noble/post-quantum/utils.js:
-@noble/post-quantum/_crystals.js:
-@noble/post-quantum/ml-dsa.js:
-  (*! noble-post-quantum - MIT License (c) 2024 Paul Miller (paulmillr.com) *)
-*/
-</script>
-
-<!-- ═══════════════ APPLICATION LOGIC ═══════════════ -->
-<script>
-/* ─── State ─────────────────────────────────────────── */
-const DEFAULTS = {
-  tasks: 5, strategy: 'parallel', modelTier: 'fast',
-  tier: 'free', pqc: false, audit: true,
-  maxParallel: 5, timeout: 30, network: 'testnet'
-};
-const TIER_LIMITS = {
-  free:       { maxAgents: 5, modelTiers: ['fast'], pqc: false, networks: ['testnet'] },
-  pro:        { maxAgents: Infinity, modelTiers: ['fast','balanced','deep'], pqc: true, networks: ['testnet','mainnet'] },
-  enterprise: { maxAgents: Infinity, modelTiers: ['fast','balanced','deep'], pqc: true, networks: ['testnet','mainnet'] }
-};
-const MODEL_REGISTRY = {
-  fast:     [{ provider:'groq', model:'llama-3.1-8b-instant' }, { provider:'ollama', model:'qwen3-coder:latest' }, { provider:'google', model:'gemini-1.5-flash' }],
-  balanced: [{ provider:'anthropic', model:'claude-3-5-haiku' }, { provider:'openai', model:'gpt-4o-mini' }, { provider:'google', model:'gemini-1.5-pro' }],
-  deep:     [{ provider:'anthropic', model:'claude-sonnet-4' }, { provider:'openai', model:'gpt-4-turbo' }, { provider:'ollama', model:'deepseek-coder-v2' }]
-};
-const PRESETS = {
-  demo:       { tasks:3, strategy:'parallel', modelTier:'fast', tier:'free', pqc:false, audit:true, maxParallel:5, timeout:30, network:'testnet' },
-  pqc:        { tasks:5, strategy:'parallel', modelTier:'balanced', tier:'pro', pqc:true, audit:true, maxParallel:5, timeout:30, network:'testnet' },
-  stress:     { tasks:20, strategy:'parallel', modelTier:'fast', tier:'free', pqc:false, audit:true, maxParallel:10, timeout:5, network:'testnet' },
-  enterprise: { tasks:10, strategy:'adaptive', modelTier:'deep', tier:'enterprise', pqc:true, audit:true, maxParallel:5, timeout:60, network:'mainnet' }
-};
-
-let state = { ...DEFAULTS };
-let agents = [];
-let animPhase = -1;
-let isRunning = false;
-let masterSeed = null;
-let selectedAgent = null;
-const encoder = new TextEncoder();
-
-/* ─── Tier Management ───────────────────────────────── */
-function setTier(tier) {
-  state.tier = tier;
-  const limits = TIER_LIMITS[tier];
-  if (state.tasks > limits.maxAgents && limits.maxAgents !== Infinity) state.tasks = limits.maxAgents;
-  if (!limits.modelTiers.includes(state.modelTier)) state.modelTier = 'fast';
-  if (!limits.pqc) state.pqc = false;
-  if (!limits.networks.includes(state.network)) state.network = 'testnet';
-
-  document.querySelectorAll('.tier-pill').forEach(p => {
-    p.className = 'tier-pill';
-    if (p.dataset.tier === tier) p.classList.add('active-' + tier);
-  });
-  const colors = { free: '#00ffa3', pro: '#a78bfa', enterprise: '#f59e0b' };
-  document.documentElement.style.setProperty('--tier-color', colors[tier]);
-  syncAllUI();
-  updateLockedControls();
-  updateAll();
-}
-
-function updateLockedControls() {
-  const limits = TIER_LIMITS[state.tier];
-  document.querySelectorAll('[data-needs="pro"]').forEach(el => {
-    const isLocked = !limits.modelTiers.includes('balanced');
-    el.classList.toggle('locked', isLocked);
-    const lockIcon = el.querySelector('.lock-icon');
-    if (lockIcon) lockIcon.style.display = isLocked ? '' : 'none';
-  });
-  const tasksSlider = document.getElementById('tasksSlider');
-  tasksSlider.max = limits.maxAgents === Infinity ? 20 : limits.maxAgents;
-  if (+tasksSlider.value > +tasksSlider.max) {
-    tasksSlider.value = tasksSlider.max;
-    state.tasks = +tasksSlider.max;
-  }
-}
-
-/* ─── State Setters ─────────────────────────────────── */
-function setState(key, value) {
-  state[key] = value;
-  updateAll();
-}
-
-function setRadio(group, value) {
-  const limits = TIER_LIMITS[state.tier];
-  if (group === 'modelTier' && !limits.modelTiers.includes(value)) return;
-  if (group === 'network' && !limits.networks.includes(value)) return;
-  state[group] = value;
-  const groupEl = document.getElementById(group + 'Group');
-  groupEl.querySelectorAll('.radio-opt').forEach(el => {
-    el.classList.toggle('selected', el.dataset.val === value);
-  });
-  updateAll();
-}
-
-function toggleState(key) {
-  if (key === 'pqc' && !TIER_LIMITS[state.tier].pqc) return;
-  state[key] = !state[key];
-  document.getElementById(key + 'Toggle').classList.toggle('on', state[key]);
-  updateAll();
-}
-
-function applyPreset(name, btnEl) {
-  const preset = PRESETS[name];
-  Object.assign(state, preset);
-  setTier(preset.tier);
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  if (btnEl) btnEl.classList.add('active');
-}
-
-function syncAllUI() {
-  document.getElementById('tasksSlider').value = state.tasks;
-  document.getElementById('maxParSlider').value = state.maxParallel;
-  document.getElementById('timeoutSlider').value = state.timeout;
-  document.getElementById('pqcToggle').classList.toggle('on', state.pqc);
-  document.getElementById('auditToggle').classList.toggle('on', state.audit);
-  ['strategy', 'modelTier', 'network'].forEach(g => {
-    const groupEl = document.getElementById(g + 'Group');
-    if (!groupEl) return;
-    groupEl.querySelectorAll('.radio-opt').forEach(el => {
-      el.classList.toggle('selected', el.dataset.val === state[g]);
-    });
-  });
-}
-
-/* ─── Update All ────────────────────────────────────── */
-function updateAll() {
-  document.getElementById('tasksVal').textContent = state.tasks;
-  document.getElementById('maxParVal').textContent = state.maxParallel;
-  document.getElementById('timeoutVal').textContent = state.timeout + 's';
-  document.getElementById('configSummary').textContent =
-    state.tasks + ' agents \u00b7 ' + state.strategy + ' \u00b7 ' + state.modelTier + ' tier';
-  updateCode();
-}
-
-/* ─── Code Generator ────────────────────────────────── */
-function updateCode() {
-  const s = state;
-  const configLines = [];
-  if (s.maxParallel !== 5) configLines.push('  maxParallel: ' + s.maxParallel + ',');
-  if (s.timeout !== 120) configLines.push('  timeout: ' + (s.timeout * 1000) + ',');
-  configLines.push('  enableAuditTrail: ' + s.audit + ',');
-  if (s.network !== 'testnet') configLines.push('  hederaNetwork: "' + s.network + '",');
-
-  let pqcBlock = '';
-  if (s.pqc && TIER_LIMITS[s.tier].pqc) {
-    pqcBlock = '\n  pqcIdentity: {\n    masterSeed: crypto.getRandomValues(new Uint8Array(32)),\n  },';
-  } else if (s.tier === 'free') {
-    pqcBlock = '\n  // Upgrade to Pro for PQC identity \u2014 $49/mo';
-  }
-
-  const models = MODEL_REGISTRY[s.modelTier];
-  const taskLines = [];
-  for (let i = 0; i < Math.min(s.tasks, 3); i++) {
-    taskLines.push('    { id: "task-' + (i+1) + '", description: "Agent task ' + (i+1) + '",\n      input: { source: "api" }, modelTier: "' + s.modelTier + '" },');
-  }
-  if (s.tasks > 3) taskLines.push('    // ... ' + (s.tasks - 3) + ' more tasks');
-
-  const code = 'import { SwarmSpawner } from "@taurus-ai/swarm-spawner";\n\nconst spawner = new SwarmSpawner({\n' +
-    configLines.join('\n') + pqcBlock +
-    '\n});\n\nconst result = await spawner.spawn({\n  tasks: [\n' +
-    taskLines.join('\n') +
-    '\n  ],\n  strategy: "' + s.strategy + '",\n});\n\nconsole.log(result);\n// { total: ' + s.tasks +
-    ', passed: ' + (s.tasks - 1) + ', failed: 1, duration: ~' + (s.tasks * 200) + 'ms }';
-
-  document.getElementById('codeOutput').innerHTML = highlightTS(code);
-}
-
-function highlightTS(code) {
-  return code
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/(\/\/.*)/g, '<span class="cmt">$1</span>')
-    .replace(/\b(import|from|const|await|new|true|false)\b/g, '<span class="kw">$1</span>')
-    .replace(/\b(SwarmSpawner|Uint8Array)\b/g, '<span class="typ">$1</span>')
-    .replace(/"([^"]*)"/g, '<span class="str">"$1"</span>')
-    .replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
-}
-
-/* ─── Copy Helpers ──────────────────────────────────── */
-function copyCode() {
-  navigator.clipboard.writeText(document.getElementById('codeOutput').textContent);
-  flashCopied(document.getElementById('codeCopyBtn'));
-}
-function copyInstall(btn) {
-  navigator.clipboard.writeText('npm i @taurus-ai/swarm-spawner');
-  flashCopied(btn);
-}
-function copyCert() {
-  navigator.clipboard.writeText(document.getElementById('certBody').textContent);
-  flashCopied(document.querySelector('.cert-header .copy-btn'));
-}
-function flashCopied(btn) {
-  if (!btn) return;
-  const orig = btn.textContent;
-  btn.textContent = 'Copied!';
-  btn.classList.add('copied');
-  setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
-}
-
-/* ─── PQC Crypto (Real @noble/post-quantum) ─────────── */
-function deriveSeed() {
-  masterSeed = crypto.getRandomValues(new Uint8Array(32));
-  return masterSeed;
-}
-
-function deriveAgentKey(swarmId, agentId) {
-  const context = encoder.encode(swarmId + ':' + agentId);
-  const combined = new Uint8Array(masterSeed.length + context.length);
-  combined.set(masterSeed);
-  combined.set(context, masterSeed.length);
-  return Noble.ml_dsa65.keygen(Noble.sha256(combined));
-}
-
-function issueBirthCert(agent, swarmId) {
-  const kp = deriveAgentKey(swarmId, agent.id);
-  const ts = new Date().toISOString();
-  const payload = { type: 'birth', agentId: agent.id, task: agent.task, model: agent.model, swarmId: swarmId, timestamp: ts };
-  const msg = encoder.encode(JSON.stringify(payload));
-  return { type: 'birth', payload: payload, signature: Noble.ml_dsa65.sign(msg, kp.secretKey), publicKey: kp.publicKey, algorithm: 'ML-DSA-65', timestamp: ts };
-}
-
-function issueDeathCert(agent, swarmId) {
-  const kp = deriveAgentKey(swarmId, agent.id);
-  const ts = new Date().toISOString();
-  const rh = Noble.bytesToHex(Noble.sha256(encoder.encode(JSON.stringify(agent.output || agent.error || ''))));
-  const payload = { type: 'death', agentId: agent.id, status: agent.status, resultHash: rh, timestamp: ts };
-  const msg = encoder.encode(JSON.stringify(payload));
-  return { type: 'death', payload: payload, signature: Noble.ml_dsa65.sign(msg, kp.secretKey), publicKey: kp.publicKey, algorithm: 'ML-DSA-65', timestamp: ts };
-}
-
-function verifyCert(cert) {
-  return Noble.ml_dsa65.verify(cert.signature, encoder.encode(JSON.stringify(cert.payload)), cert.publicKey);
-}
-
-/* ─── Spawn Animation ───────────────────────────────── */
-async function runSpawn() {
-  if (isRunning) return;
-  isRunning = true;
-  const btn = document.getElementById('spawnBtn');
-  btn.classList.add('running'); btn.disabled = true;
-  selectedAgent = null;
-
-  const swarmId = 'swarm-' + Date.now() + '-' + crypto.randomUUID().slice(0, 8);
-  deriveSeed();
-
-  // Create agents
-  agents = [];
-  const failIdx = Math.floor(Math.random() * state.tasks);
-  const models = MODEL_REGISTRY[state.modelTier];
-  for (let i = 0; i < state.tasks; i++) {
-    const m = models[i % models.length];
-    agents.push({
-      id: 'agent-' + Date.now() + '-' + crypto.randomUUID().slice(0, 12),
-      num: i + 1, task: 'Task ' + (i+1), model: m.model, provider: m.provider,
-      modelTier: state.modelTier, status: 'pending', willFail: i === failIdx,
-      birthCert: null, deathCert: null, output: null, error: null
-    });
-  }
-
-  // Reset UI
-  document.getElementById('placeholder').style.display = 'none';
-  const container = document.getElementById('agentsContainer');
-  container.style.display = 'flex';
-  container.innerHTML = '';
-  document.getElementById('summaryStats').className = 'summary-stats';
-  document.getElementById('hederaLine').className = 'hedera-line';
-  document.getElementById('scrubberWrap').className = 'scrubber-container';
-  document.getElementById('certInspector').className = 'cert-inspector';
-
-  agents.forEach(function(ag) {
-    const node = document.createElement('div');
-    node.className = 'agent-node ' + state.modelTier;
-    node.id = 'node-' + ag.num;
-    node.innerHTML = '<div class="agent-progress" style="--progress:0%"></div>' +
-      '<span>' + String(ag.num).padStart(2, '0') + '</span>' +
-      '<span class="agent-cert-icon" id="cert-icon-' + ag.num + '"></span>' +
-      '<span class="agent-model-label" id="model-label-' + ag.num + '">' + ag.provider + '/' + ag.model + '</span>';
-    node.onclick = function() { inspectAgent(ag); };
-    container.appendChild(node);
-  });
-
-  const phaseLabel = document.getElementById('phaseLabel');
-
-  // Phase 0: ENFORCE
-  animPhase = 0;
-  phaseLabel.textContent = 'ENFORCE';
-  phaseLabel.classList.add('visible');
-  updateScrubberLabels(0);
-  await sleep(300);
-  phaseLabel.innerHTML = 'ENFORCE <span class="check-mark">&#10003;</span>';
-  await sleep(200);
-
-  // Phase 1: ROUTE
-  animPhase = 1;
-  phaseLabel.textContent = 'ROUTE';
-  updateScrubberLabels(1);
-  for (let i = 0; i < agents.length; i++) {
-    const node = document.getElementById('node-' + agents[i].num);
-    node.classList.add('spawned');
-    const ripple = document.createElement('div');
-    ripple.className = 'ripple';
-    node.appendChild(ripple);
-    setTimeout(function() { ripple.remove(); }, 800);
-    await sleep(Math.max(30, 500 / agents.length));
-  }
-
-  // Phase 2: CERTIFY BIRTH
-  animPhase = 2;
-  phaseLabel.textContent = 'CERTIFY BIRTH';
-  updateScrubberLabels(2);
-  if (state.pqc && TIER_LIMITS[state.tier].pqc) {
-    for (const ag of agents) {
-      // Yield to UI between keygen calls (each ~50-100ms)
-      await new Promise(function(r) { setTimeout(r, 0); });
-      ag.birthCert = issueBirthCert(ag, swarmId);
-      const icon = document.getElementById('cert-icon-' + ag.num);
-      icon.textContent = '\uD83D\uDD0F';
-      icon.classList.add('visible');
-    }
-  }
-  agents.forEach(function(ag) {
-    document.getElementById('model-label-' + ag.num).classList.add('visible');
-  });
-  await sleep(300);
-
-  // Phase 3: EXECUTE
-  animPhase = 3;
-  phaseLabel.textContent = 'EXECUTE';
-  updateScrubberLabels(3);
-  const startTime = Date.now();
-
-  const runAgent = function(ag) {
-    return new Promise(function(resolve) {
-      const node = document.getElementById('node-' + ag.num);
-      node.classList.add('running');
-      ag.status = 'running';
-      const duration = ag.willFail ? (200 + Math.random() * 300) : (300 + Math.random() * 500);
-      const progressStart = performance.now();
-      function animProgress(now) {
-        const pct = Math.min(100, ((now - progressStart) / duration) * 100);
-        node.querySelector('.agent-progress').style.setProperty('--progress', pct + '%');
-        if (pct < 100) requestAnimationFrame(animProgress);
-      }
-      requestAnimationFrame(animProgress);
-      setTimeout(function() {
-        node.classList.remove('running');
-        if (ag.willFail) {
-          ag.status = 'failed'; ag.error = 'Agent timed out';
-          node.classList.add('failed');
-        } else {
-          ag.status = 'completed';
-          ag.output = { agentId: ag.id, result: 'Processed: ' + ag.task };
-          node.classList.add('completed');
-        }
-        resolve();
-      }, duration);
-    });
-  };
-
-  if (state.strategy === 'sequential') {
-    for (const ag of agents) await runAgent(ag);
-  } else {
-    for (let i = 0; i < agents.length; i += state.maxParallel) {
-      await Promise.all(agents.slice(i, i + state.maxParallel).map(runAgent));
-    }
-  }
-
-  // Phase 4: CERTIFY DEATH
-  animPhase = 4;
-  phaseLabel.textContent = 'CERTIFY DEATH';
-  updateScrubberLabels(4);
-  if (state.pqc && TIER_LIMITS[state.tier].pqc) {
-    for (const ag of agents) {
-      await new Promise(function(r) { setTimeout(r, 0); });
-      ag.deathCert = issueDeathCert(ag, swarmId);
-      const icon = document.getElementById('cert-icon-' + ag.num);
-      icon.textContent = ag.status === 'completed' ? '\u2620' : '\u274C';
-    }
-  }
-  await sleep(300);
-
-  // Phase 5: AUDIT
-  animPhase = 5;
-  phaseLabel.textContent = 'AUDIT';
-  updateScrubberLabels(5);
-  if (state.audit) {
-    document.getElementById('hederaSeq').textContent = agents.length;
-    document.getElementById('hederaLine').classList.add('visible');
-  }
-  await sleep(300);
-
-  // DIE — fade then restore
-  const totalDuration = Date.now() - startTime;
-  const passed = agents.filter(function(a) { return a.status === 'completed'; }).length;
-  const failed = agents.filter(function(a) { return a.status === 'failed'; }).length;
-  const avgTime = Math.round(totalDuration / agents.length);
-  const certsIssued = (state.pqc && TIER_LIMITS[state.tier].pqc) ? agents.length * 2 : 0;
-
-  agents.forEach(function(ag) {
-    document.getElementById('node-' + ag.num).classList.add('dying');
-  });
-  await sleep(500);
-
-  const stats = document.getElementById('summaryStats');
-  stats.innerHTML = '<span class="highlight">' + passed + '/' + agents.length + '</span> completed \u00b7 ' +
-    '<span class="highlight">' + avgTime + 'ms</span> avg' +
-    (certsIssued > 0 ? ' \u00b7 <span class="highlight">' + certsIssued + '</span> certs issued' : '') +
-    (failed > 0 ? ' \u00b7 <span style="color:var(--neon-red)">' + failed + ' failed</span>' : '');
-  stats.classList.add('visible');
-
-  // Restore for scrubber
-  agents.forEach(function(ag) {
-    const node = document.getElementById('node-' + ag.num);
-    node.classList.remove('dying');
-    node.style.opacity = '1'; node.style.transform = 'scale(1)';
-  });
-
-  document.getElementById('scrubberWrap').classList.add('visible');
-  document.getElementById('scrubberInput').value = 5;
-  phaseLabel.textContent = 'COMPLETE';
-  btn.classList.remove('running'); btn.disabled = false;
-  isRunning = false;
-}
-
-/* ─── Scrubber ──────────────────────────────────────── */
-function scrubTo(phase) {
-  animPhase = phase;
-  document.getElementById('scrubberInput').value = phase;
-  updateScrubberLabels(phase);
-
-  agents.forEach(function(ag) {
-    const node = document.getElementById('node-' + ag.num);
-    if (!node) return;
-    node.className = 'agent-node ' + state.modelTier + ' spawned';
-    node.querySelector('.agent-progress').style.setProperty('--progress', '0%');
-    const certIcon = document.getElementById('cert-icon-' + ag.num);
-    certIcon.className = 'agent-cert-icon';
-    document.getElementById('model-label-' + ag.num).className = 'agent-model-label';
-
-    if (phase >= 2) {
-      document.getElementById('model-label-' + ag.num).classList.add('visible');
-      if (state.pqc && ag.birthCert) {
-        certIcon.textContent = '\uD83D\uDD0F';
-        certIcon.classList.add('visible');
-      }
-    }
-    if (phase >= 3) {
-      node.querySelector('.agent-progress').style.setProperty('--progress', '100%');
-      node.classList.add(ag.willFail ? 'failed' : 'completed');
-    }
-    if (phase >= 4 && state.pqc && ag.deathCert) {
-      certIcon.textContent = ag.status === 'completed' ? '\u2620' : '\u274C';
-    }
-  });
-
-  if ((phase === 2 || phase === 4) && state.pqc && agents.length > 0) {
-    showCertInspector(agents[0], phase === 2 ? 'birth' : 'death');
-  } else if (!selectedAgent) {
-    document.getElementById('certInspector').classList.remove('visible');
-  }
-
-  document.getElementById('hederaLine').classList.toggle('visible', phase >= 5 && state.audit);
-  const labels = ['ENFORCE', 'ROUTE', 'CERTIFY BIRTH', 'EXECUTE', 'CERTIFY DEATH', 'AUDIT'];
-  document.getElementById('phaseLabel').textContent = labels[phase] || 'COMPLETE';
-}
-
-function updateScrubberLabels(phase) {
-  document.querySelectorAll('.scrubber-label').forEach(function(el) {
-    el.classList.toggle('active', +el.dataset.phase === phase);
-  });
-}
-
-/* ─── Certificate Inspector ─────────────────────────── */
-function inspectAgent(agent) {
-  selectedAgent = agent;
-  document.querySelectorAll('.agent-node').forEach(function(n) { n.classList.remove('selected'); });
-  var nd = document.getElementById('node-' + agent.num);
-  if (nd) nd.classList.add('selected');
-  var cert = agent.deathCert || agent.birthCert;
-  if (cert) showCertInspector(agent, cert.type);
-}
-
-function showCertInspector(agent, type) {
-  var cert = type === 'birth' ? agent.birthCert : agent.deathCert;
-  if (!cert) { document.getElementById('certInspector').classList.remove('visible'); return; }
-
-  document.getElementById('certTitle').textContent =
-    (type === 'birth' ? '\uD83D\uDD0F Birth' : '\u2620 Death') + ' Certificate \u2014 Agent ' + String(agent.num).padStart(2, '0');
-
-  var sigHex = Noble.bytesToHex(cert.signature);
-  var pubHex = Noble.bytesToHex(cert.publicKey);
-
-  document.getElementById('certBody').innerHTML =
-    '<div class="cert-row"><span class="cert-key">Type</span><span class="cert-val">' + cert.type + '</span></div>' +
-    '<div class="cert-row"><span class="cert-key">Agent ID</span><span class="cert-val" style="font-size:10px;">' + agent.id + '</span></div>' +
-    '<div class="cert-row"><span class="cert-key">Algorithm</span><span class="cert-val">ML-DSA-65 (NIST FIPS 204)</span></div>' +
-    '<div class="cert-row"><span class="cert-key">Timestamp</span><span class="cert-val">' + cert.timestamp + '</span></div>' +
-    '<div class="cert-row"><span class="cert-key">Signature</span><span class="cert-val hex" onclick="this.textContent=this.dataset.full" data-full="' + sigHex + '">' + sigHex.slice(0, 64) + '... (' + cert.signature.length + ' bytes)</span></div>' +
-    '<div class="cert-row"><span class="cert-key">Public Key</span><span class="cert-val hex" onclick="this.textContent=this.dataset.full" data-full="' + pubHex + '">' + pubHex.slice(0, 64) + '... (' + cert.publicKey.length + ' bytes)</span></div>' +
-    '<div class="cert-row"><span class="cert-key">Payload</span><span class="cert-val" style="font-size:10px;white-space:pre-wrap;">' + JSON.stringify(cert.payload, null, 2).replace(/</g, '&lt;') + '</span></div>' +
-    '<div style="margin-top:8px;"><button class="verify-btn" onclick="runVerify(this,' + agent.num + ',\'' + type + '\')">Verify Signature</button><span class="verify-result" id="vr-' + agent.num + '-' + type + '"></span></div>';
-
-  document.getElementById('certInspector').classList.add('visible');
-}
-
-function runVerify(btn, agentNum, type) {
-  var agent = agents.find(function(a) { return a.num === agentNum; });
-  var cert = type === 'birth' ? agent.birthCert : agent.deathCert;
-  var el = document.getElementById('vr-' + agentNum + '-' + type);
-  btn.disabled = true; btn.textContent = 'Verifying...';
-  setTimeout(function() {
-    try {
-      var valid = verifyCert(cert);
-      el.textContent = valid ? '\u2713 Signature Valid' : '\u2717 Invalid';
-      el.className = 'verify-result ' + (valid ? 'valid' : 'invalid');
-    } catch (e) {
-      el.textContent = '\u2717 ' + e.message;
-      el.className = 'verify-result invalid';
-    }
-    btn.disabled = false; btn.textContent = 'Verify Signature';
-  }, 50);
-}
-
-/* ─── Utilities ─────────────────────────────────────── */
-function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
-
-/* ─── Init ──────────────────────────────────────────── */
-updateLockedControls();
-updateAll();
-</script>
-</body>
-</html>
+     1|<!DOCTYPE html>
+     2|<html lang="en">
+     3|<head>
+     4|<meta charset="UTF-8">
+     5|<meta name="viewport" content="width=device-width, initial-scale=1.0">
+     6|<title>GRIDERA Migrate — PQC Agent Playground</title>
+     7|<style>
+     8|/* ═══════════════════════════════════════════════════════════
+     9|   CYBERPUNK TERMINAL THEME
+    10|   ═══════════════════════════════════════════════════════════ */
+    11|:root {
+    12|  --bg: #0a0a0f;
+    13|  --bg-card: #111118;
+    14|  --bg-input: #16161e;
+    15|  --border: #1e1e2a;
+    16|  --border-hover: #2a2a3a;
+    17|  --text: #c8c8d0;
+    18|  --text-dim: #555566;
+    19|  --text-bright: #eeeef0;
+    20|  --neon-green: #00ffa3;
+    21|  --neon-purple: #a78bfa;
+    22|  --neon-amber: #f59e0b;
+    23|  --neon-red: #ef4444;
+    24|  --neon-cyan: #22d3ee;
+    25|  --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+    26|  --tier-color: var(--neon-green);
+    27|}
+    28|*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    29|body {
+    30|  font-family: var(--font-mono);
+    31|  background: var(--bg);
+    32|  color: var(--text);
+    33|  line-height: 1.5;
+    34|  overflow-x: hidden;
+    35|  min-height: 100vh;
+    36|}
+    37|::selection { background: rgba(0,255,163,0.2); }
+    38|::-webkit-scrollbar { width: 6px; }
+    39|::-webkit-scrollbar-track { background: var(--bg); }
+    40|::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    41|
+    42|/* ═══════════════════════════════════════════════════════════
+    43|   HEADER
+    44|   ═══════════════════════════════════════════════════════════ */
+    45|.header {
+    46|  display: flex; align-items: center; justify-content: space-between;
+    47|  padding: 12px 24px;
+    48|  border-bottom: 1px solid var(--border);
+    49|  background: rgba(10,10,15,0.95);
+    50|  position: sticky; top: 0; z-index: 100;
+    51|  backdrop-filter: blur(8px);
+    52|}
+    53|.logo {
+    54|  display: flex; align-items: center; gap: 10px;
+    55|  font-size: 14px; letter-spacing: 3px; color: var(--neon-green);
+    56|  text-transform: uppercase; font-weight: 600;
+    57|}
+    58|.logo-hex { font-size: 20px; }
+    59|.logo-version {
+    60|  font-size: 10px; color: var(--text-dim);
+    61|  letter-spacing: 1px; margin-left: 4px;
+    62|}
+    63|.header-controls { display: flex; align-items: center; gap: 16px; }
+    64|.tier-pills { display: flex; gap: 2px; background: var(--bg-input); border-radius: 6px; padding: 2px; }
+    65|.tier-pill {
+    66|  padding: 6px 14px; border-radius: 4px; font-size: 11px;
+    67|  letter-spacing: 1px; cursor: pointer; border: none;
+    68|  background: transparent; color: var(--text-dim);
+    69|  font-family: var(--font-mono); transition: all 0.2s;
+    70|  text-transform: uppercase;
+    71|}
+    72|.tier-pill:hover { color: var(--text); }
+    73|.tier-pill.active-free { background: rgba(0,255,163,0.15); color: var(--neon-green); box-shadow: 0 0 8px rgba(0,255,163,0.1); }
+    74|.tier-pill.active-pro { background: rgba(167,139,250,0.15); color: var(--neon-purple); box-shadow: 0 0 8px rgba(167,139,250,0.1); }
+    75|.tier-pill.active-enterprise { background: rgba(245,158,11,0.15); color: var(--neon-amber); box-shadow: 0 0 8px rgba(245,158,11,0.1); }
+    76|.spawn-btn {
+    77|  padding: 8px 24px; border-radius: 6px; font-size: 13px;
+    78|  letter-spacing: 2px; cursor: pointer; border: 2px solid var(--tier-color);
+    79|  background: transparent; color: var(--tier-color);
+    80|  font-family: var(--font-mono); font-weight: 700;
+    81|  text-transform: uppercase; transition: all 0.3s;
+    82|  position: relative; overflow: hidden;
+    83|}
+    84|.spawn-btn:hover:not(:disabled) {
+    85|  background: rgba(0,255,163,0.1);
+    86|  box-shadow: 0 0 20px rgba(0,255,163,0.2), 0 0 40px rgba(0,255,163,0.1);
+    87|}
+    88|.spawn-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    89|.spawn-btn.running { animation: pulse-border 1s ease-in-out infinite; }
+    90|@keyframes pulse-border {
+    91|  0%, 100% { box-shadow: 0 0 8px rgba(0,255,163,0.2); }
+    92|  50% { box-shadow: 0 0 20px rgba(0,255,163,0.4), 0 0 40px rgba(0,255,163,0.15); }
+    93|}
+    94|
+    95|/* ═══════════════════════════════════════════════════════════
+    96|   MAIN LAYOUT
+    97|   ═══════════════════════════════════════════════════════════ */
+    98|.main { display: flex; min-height: calc(100vh - 49px); }
+    99|.controls-panel {
+   100|  width: 280px; min-width: 280px;
+   101|  border-right: 1px solid var(--border);
+   102|  padding: 16px; overflow-y: auto;
+   103|  background: var(--bg);
+   104|}
+   105|.stage { flex: 1; display: flex; flex-direction: column; }
+   106|.animation-area {
+   107|  flex: 1; min-height: 380px;
+   108|  display: flex; flex-direction: column;
+   109|  align-items: center; justify-content: center;
+   110|  padding: 24px; position: relative;
+   111|}
+   112|.code-panel {
+   113|  border-top: 1px solid var(--border);
+   114|  background: var(--bg-card);
+   115|  padding: 0;
+   116|}
+   117|
+   118|/* ═══════════════════════════════════════════════════════════
+   119|   CONTROLS
+   120|   ═══════════════════════════════════════════════════════════ */
+   121|.section-label {
+   122|  font-size: 10px; letter-spacing: 2px; color: var(--text-dim);
+   123|  text-transform: uppercase; margin-bottom: 8px; margin-top: 16px;
+   124|}
+   125|.section-label:first-child { margin-top: 0; }
+   126|.presets { display: flex; flex-direction: column; gap: 4px; }
+   127|.preset-btn {
+   128|  padding: 6px 10px; border-radius: 4px; font-size: 11px;
+   129|  cursor: pointer; border: 1px solid var(--border);
+   130|  background: var(--bg-input); color: var(--text-dim);
+   131|  font-family: var(--font-mono); text-align: left; transition: all 0.2s;
+   132|}
+   133|.preset-btn:hover { border-color: var(--tier-color); color: var(--text); }
+   134|.preset-btn.active { border-color: var(--tier-color); color: var(--tier-color); background: rgba(0,255,163,0.05); }
+   135|.control-group { margin-top: 12px; }
+   136|.control-label {
+   137|  display: flex; justify-content: space-between; align-items: center;
+   138|  font-size: 11px; color: var(--text-dim); margin-bottom: 6px;
+   139|  letter-spacing: 1px; text-transform: uppercase;
+   140|}
+   141|.control-value { color: var(--tier-color); font-weight: 600; }
+   142|input[type="range"] {
+   143|  -webkit-appearance: none; width: 100%; height: 4px;
+   144|  background: var(--bg-input); border-radius: 2px; outline: none;
+   145|  border: 1px solid var(--border);
+   146|}
+   147|input[type="range"]::-webkit-slider-thumb {
+   148|  -webkit-appearance: none; width: 14px; height: 14px;
+   149|  background: var(--tier-color); border-radius: 50%; cursor: pointer;
+   150|  box-shadow: 0 0 6px rgba(0,255,163,0.3);
+   151|}
+   152|.radio-group { display: flex; flex-direction: column; gap: 4px; }
+   153|.radio-opt {
+   154|  display: flex; align-items: center; gap: 8px;
+   155|  font-size: 12px; color: var(--text-dim); cursor: pointer;
+   156|  padding: 4px 6px; border-radius: 4px; transition: all 0.15s;
+   157|  position: relative;
+   158|}
+   159|.radio-opt:hover { color: var(--text); }
+   160|.radio-opt.selected { color: var(--tier-color); }
+   161|.radio-opt.locked { opacity: 0.35; cursor: not-allowed; }
+   162|.radio-dot {
+   163|  width: 12px; height: 12px; border-radius: 50%;
+   164|  border: 2px solid var(--border); flex-shrink: 0; transition: all 0.15s;
+   165|}
+   166|.radio-opt.selected .radio-dot {
+   167|  border-color: var(--tier-color);
+   168|  background: var(--tier-color);
+   169|  box-shadow: 0 0 6px rgba(0,255,163,0.3);
+   170|}
+   171|.lock-icon { margin-left: auto; font-size: 10px; }
+   172|.toggle-wrap {
+   173|  display: flex; align-items: center; justify-content: space-between;
+   174|  padding: 4px 0; position: relative; cursor: pointer;
+   175|}
+   176|.toggle-label { font-size: 12px; color: var(--text-dim); }
+   177|.toggle {
+   178|  width: 36px; height: 20px; border-radius: 10px;
+   179|  background: var(--bg-input); border: 1px solid var(--border);
+   180|  cursor: pointer; position: relative; transition: all 0.2s;
+   181|  flex-shrink: 0;
+   182|}
+   183|.toggle.on { background: rgba(0,255,163,0.2); border-color: var(--neon-green); }
+   184|.toggle-knob {
+   185|  width: 14px; height: 14px; border-radius: 50%;
+   186|  background: var(--text-dim); position: absolute; top: 2px; left: 2px;
+   187|  transition: all 0.2s;
+   188|}
+   189|.toggle.on .toggle-knob { left: 18px; background: var(--neon-green); box-shadow: 0 0 6px rgba(0,255,163,0.4); }
+   190|.toggle.locked { opacity: 0.35; cursor: not-allowed; }
+   191|.tooltip {
+   192|  position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+   193|  background: var(--bg-card); border: 1px solid var(--tier-color);
+   194|  color: var(--tier-color); padding: 4px 10px; border-radius: 4px;
+   195|  font-size: 10px; white-space: nowrap; pointer-events: none;
+   196|  opacity: 0; transition: opacity 0.2s; z-index: 10;
+   197|}
+   198|.locked:hover .tooltip { opacity: 1; }
+   199|.divider { height: 1px; background: var(--border); margin: 16px 0; }
+   200|
+   201|/* ═══════════════════════════════════════════════════════════
+   202|   ANIMATION STAGE
+   203|   ═══════════════════════════════════════════════════════════ */
+   204|.stage-placeholder { text-align: center; color: var(--text-dim); }
+   205|.stage-placeholder-title {
+   206|  font-size: 16px; color: var(--text); margin-bottom: 4px;
+   207|  letter-spacing: 1px;
+   208|}
+   209|.stage-placeholder-sub { font-size: 12px; }
+   210|.phase-label {
+   211|  position: absolute; top: 16px; left: 24px;
+   212|  font-size: 11px; letter-spacing: 2px; color: var(--tier-color);
+   213|  text-transform: uppercase; opacity: 0; transition: opacity 0.3s;
+   214|}
+   215|.phase-label.visible { opacity: 1; }
+   216|.agents-container {
+   217|  display: flex; flex-wrap: wrap; gap: 16px;
+   218|  justify-content: center; align-items: center;
+   219|  padding: 16px; min-height: 120px;
+   220|}
+   221|.agent-node {
+   222|  width: 52px; height: 52px; border-radius: 50%;
+   223|  border: 2px solid var(--border); display: flex;
+   224|  align-items: center; justify-content: center;
+   225|  font-size: 11px; color: var(--text-dim);
+   226|  position: relative; cursor: pointer;
+   227|  transition: all 0.3s; opacity: 0; transform: scale(0);
+   228|  background: var(--bg-card);
+   229|}
+   230|.agent-node.spawned { opacity: 1; transform: scale(1); }
+   231|.agent-node.fast { border-color: var(--neon-green); color: var(--neon-green); }
+   232|.agent-node.balanced { border-color: var(--neon-purple); color: var(--neon-purple); }
+   233|.agent-node.deep { border-color: var(--neon-amber); color: var(--neon-amber); }
+   234|.agent-node.running { animation: agent-pulse 0.8s ease-in-out infinite; }
+   235|.agent-node.completed { box-shadow: 0 0 12px rgba(0,255,163,0.3); }
+   236|.agent-node.failed { border-color: var(--neon-red); color: var(--neon-red); box-shadow: 0 0 12px rgba(239,68,68,0.3); }
+   237|.agent-node.dying { opacity: 0; transform: scale(0.5); transition: all 0.5s; }
+   238|.agent-node.selected { box-shadow: 0 0 0 3px rgba(0,255,163,0.3); }
+   239|@keyframes agent-pulse {
+   240|  0%, 100% { transform: scale(1); }
+   241|  50% { transform: scale(1.08); }
+   242|}
+   243|.agent-progress {
+   244|  position: absolute; inset: -3px; border-radius: 50%;
+   245|  background: conic-gradient(var(--tier-color) var(--progress, 0%), transparent 0%);
+   246|  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+   247|  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+   248|}
+   249|.agent-cert-icon {
+   250|  position: absolute; top: -6px; right: -6px;
+   251|  font-size: 12px; opacity: 0; transition: opacity 0.3s;
+   252|}
+   253|.agent-cert-icon.visible { opacity: 1; }
+   254|.agent-model-label {
+   255|  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+   256|  font-size: 8px; color: var(--text-dim); white-space: nowrap;
+   257|  opacity: 0; transition: opacity 0.3s;
+   258|}
+   259|.agent-model-label.visible { opacity: 1; }
+   260|.summary-stats {
+   261|  font-size: 12px; color: var(--text-dim); text-align: center;
+   262|  margin-top: 16px; opacity: 0; transition: opacity 0.5s;
+   263|  letter-spacing: 1px;
+   264|}
+   265|.summary-stats.visible { opacity: 1; }
+   266|.summary-stats .highlight { color: var(--tier-color); font-weight: 600; }
+   267|
+   268|/* Timeline Scrubber */
+   269|.scrubber-container {
+   270|  width: 100%; max-width: 600px; margin-top: 20px;
+   271|  opacity: 0; transition: opacity 0.5s; pointer-events: none;
+   272|}
+   273|.scrubber-container.visible { opacity: 1; pointer-events: all; }
+   274|.scrubber-labels {
+   275|  display: flex; justify-content: space-between;
+   276|  font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+   277|  text-transform: uppercase; margin-bottom: 4px;
+   278|}
+   279|.scrubber-label { cursor: pointer; transition: color 0.2s; }
+   280|.scrubber-label.active { color: var(--tier-color); }
+   281|.scrubber-label:hover { color: var(--text); }
+   282|input.scrubber {
+   283|  width: 100%; height: 6px; -webkit-appearance: none;
+   284|  background: var(--bg-input); border: 1px solid var(--border);
+   285|  border-radius: 3px; outline: none;
+   286|}
+   287|input.scrubber::-webkit-slider-thumb {
+   288|  -webkit-appearance: none; width: 16px; height: 16px;
+   289|  background: var(--tier-color); border-radius: 50%; cursor: pointer;
+   290|  box-shadow: 0 0 10px rgba(0,255,163,0.4);
+   291|}
+   292|
+   293|/* Certificate Inspector */
+   294|.cert-inspector {
+   295|  width: 100%; max-width: 600px; margin-top: 16px;
+   296|  background: var(--bg-card); border: 1px solid var(--border);
+   297|  border-radius: 6px; overflow: hidden;
+   298|  max-height: 0; opacity: 0; transition: all 0.3s;
+   299|}
+   300|.cert-inspector.visible { max-height: 600px; opacity: 1; }
+   301|.cert-header {
+   302|  display: flex; justify-content: space-between; align-items: center;
+   303|  padding: 10px 14px; border-bottom: 1px solid var(--border);
+   304|  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+   305|  color: var(--tier-color);
+   306|}
+   307|.cert-body { padding: 12px 14px; font-size: 11px; }
+   308|.cert-row {
+   309|  display: flex; gap: 12px; padding: 4px 0;
+   310|  border-bottom: 1px solid rgba(30,30,42,0.5);
+   311|}
+   312|.cert-key { color: var(--text-dim); min-width: 90px; flex-shrink: 0; }
+   313|.cert-val { color: var(--text); word-break: break-all; }
+   314|.cert-val.hex { font-size: 10px; color: var(--neon-cyan); cursor: pointer; }
+   315|.cert-val.hex:hover { text-decoration: underline; }
+   316|.verify-btn {
+   317|  padding: 4px 12px; border-radius: 4px; font-size: 11px;
+   318|  cursor: pointer; border: 1px solid var(--neon-green);
+   319|  background: transparent; color: var(--neon-green);
+   320|  font-family: var(--font-mono); margin-top: 8px; transition: all 0.2s;
+   321|}
+   322|.verify-btn:hover { background: rgba(0,255,163,0.1); }
+   323|.verify-result { margin-left: 8px; font-size: 12px; }
+   324|.verify-result.valid { color: var(--neon-green); }
+   325|.verify-result.invalid { color: var(--neon-red); }
+   326|
+   327|/* ═══════════════════════════════════════════════════════════
+   328|   CODE OUTPUT
+   329|   ═══════════════════════════════════════════════════════════ */
+   330|.code-header {
+   331|  display: flex; justify-content: space-between; align-items: center;
+   332|  padding: 10px 16px; border-bottom: 1px solid var(--border);
+   333|  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+   334|  color: var(--text-dim);
+   335|}
+   336|.copy-btn {
+   337|  padding: 4px 12px; border-radius: 4px; font-size: 11px;
+   338|  cursor: pointer; border: 1px solid var(--border);
+   339|  background: var(--bg-input); color: var(--text-dim);
+   340|  font-family: var(--font-mono); transition: all 0.2s;
+   341|}
+   342|.copy-btn:hover { border-color: var(--tier-color); color: var(--tier-color); }
+   343|.copy-btn.copied { border-color: var(--neon-green); color: var(--neon-green); }
+   344|.code-body {
+   345|  padding: 16px; font-size: 12px; line-height: 1.7;
+   346|  overflow-x: auto; white-space: pre;
+   347|}
+   348|.code-body .kw { color: var(--neon-green); }
+   349|.code-body .str { color: var(--neon-amber); }
+   350|.code-body .cmt { color: var(--text-dim); font-style: italic; }
+   351|.code-body .typ { color: var(--neon-purple); }
+   352|.code-body .num { color: var(--neon-cyan); }
+   353|.install-bar {
+   354|  display: flex; justify-content: space-between; align-items: center;
+   355|  padding: 8px 16px; border-top: 1px solid var(--border);
+   356|  font-size: 12px; color: var(--text-dim);
+   357|  background: rgba(0,255,163,0.02);
+   358|}
+   359|.install-cmd { color: var(--neon-green); }
+   360|
+   361|/* ═══════════════════════════════════════════════════════════
+   362|   ANIMATIONS
+   363|   ═══════════════════════════════════════════════════════════ */
+   364|@keyframes ripple {
+   365|  0% { transform: scale(0); opacity: 0.6; }
+   366|  100% { transform: scale(2.5); opacity: 0; }
+   367|}
+   368|.ripple {
+   369|  position: absolute; width: 52px; height: 52px; border-radius: 50%;
+   370|  border: 1px solid var(--tier-color); pointer-events: none;
+   371|  animation: ripple 0.8s ease-out forwards;
+   372|}
+   373|@keyframes check-in {
+   374|  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+   375|  50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+   376|  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+   377|}
+   378|.check-mark {
+   379|  color: var(--neon-green); font-size: 18px; display: inline-block;
+   380|  animation: check-in 0.4s ease-out forwards;
+   381|}
+   382|.hedera-line {
+   383|  font-size: 10px; color: var(--text-dim); text-align: center;
+   384|  margin-top: 8px; opacity: 0; transition: opacity 0.5s;
+   385|  letter-spacing: 1px;
+   386|}
+   387|.hedera-line.visible { opacity: 1; }
+   388|.hedera-line .topic { color: var(--neon-cyan); }
+   389|</style>
+   390|</head>
+   391|<body>
+   392|
+   393|<!-- ═══════════════ HEADER ═══════════════ -->
+   394|<div class="header">
+   395|  <div class="logo">
+   396|    <span class="logo-hex">&#x2B21;</span>
+   397|    <span>GRIDERA Migrate</span>
+   398|    <span class="logo-version">v0.3.1</span>
+   399|  </div>
+   400|  <div class="header-controls">
+   401|    <div class="tier-pills">
+   402|      <button class="tier-pill active-free" data-tier="free" onclick="setTier('free')">Free</button>
+   403|      <button class="tier-pill" data-tier="pro" onclick="setTier('pro')">Pro</button>
+   404|      <button class="tier-pill" data-tier="enterprise" onclick="setTier('enterprise')">Enterprise</button>
+   405|    </div>
+   406|    <button class="spawn-btn" id="spawnBtn" onclick="runSpawn()">SPAWN</button>
+   407|  </div>
+   408|</div>
+   409|
+   410|<!-- ═══════════════ MAIN ═══════════════ -->
+   411|<div class="main">
+   412|
+   413|  <!-- Controls Panel -->
+   414|  <div class="controls-panel">
+   415|    <div class="section-label">Presets</div>
+   416|    <div class="presets">
+   417|      <button class="preset-btn" onclick="applyPreset('demo', this)">&#9654; Quick Demo</button>
+   418|      <button class="preset-btn" onclick="applyPreset('pqc', this)">&#128272; PQC Showcase</button>
+   419|      <button class="preset-btn" onclick="applyPreset('stress', this)">&#9889; Stress Test</button>
+   420|      <button class="preset-btn" onclick="applyPreset('enterprise', this)">&#9733; Enterprise</button>
+   421|    </div>
+   422|    <div class="divider"></div>
+   423|
+   424|    <div class="control-group">
+   425|      <div class="control-label">Tasks <span class="control-value" id="tasksVal">5</span></div>
+   426|      <input type="range" min="1" max="20" value="5" id="tasksSlider" oninput="setState('tasks', +this.value)">
+   427|    </div>
+   428|
+   429|    <div class="control-group">
+   430|      <div class="control-label">Strategy</div>
+   431|      <div class="radio-group" id="strategyGroup">
+   432|        <div class="radio-opt selected" data-val="parallel" onclick="setRadio('strategy','parallel')"><div class="radio-dot"></div>parallel</div>
+   433|        <div class="radio-opt" data-val="sequential" onclick="setRadio('strategy','sequential')"><div class="radio-dot"></div>sequential</div>
+   434|        <div class="radio-opt" data-val="adaptive" onclick="setRadio('strategy','adaptive')"><div class="radio-dot"></div>adaptive</div>
+   435|      </div>
+   436|    </div>
+   437|
+   438|    <div class="control-group">
+   439|      <div class="control-label">Model Tier</div>
+   440|      <div class="radio-group" id="modelTierGroup">
+   441|        <div class="radio-opt selected" data-val="fast" onclick="setRadio('modelTier','fast')"><div class="radio-dot"></div>fast</div>
+   442|        <div class="radio-opt" data-val="balanced" data-needs="pro" onclick="setRadio('modelTier','balanced')"><div class="radio-dot"></div>balanced <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></div>
+   443|        <div class="radio-opt" data-val="deep" data-needs="pro" onclick="setRadio('modelTier','deep')"><div class="radio-dot"></div>deep <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></div>
+   444|      </div>
+   445|    </div>
+   446|
+   447|    <div class="divider"></div>
+   448|
+   449|    <div class="control-group">
+   450|      <div class="toggle-wrap" onclick="toggleState('pqc')" id="pqcToggleWrap" data-needs="pro">
+   451|        <span class="toggle-label">PQC Identity (ML-DSA-65) <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></span>
+   452|        <div class="toggle" id="pqcToggle"><div class="toggle-knob"></div></div>
+   453|      </div>
+   454|    </div>
+   455|
+   456|    <div class="control-group">
+   457|      <div class="toggle-wrap" onclick="toggleState('audit')">
+   458|        <span class="toggle-label">Hedera Audit (HCS)</span>
+   459|        <div class="toggle on" id="auditToggle"><div class="toggle-knob"></div></div>
+   460|      </div>
+   461|    </div>
+   462|
+   463|    <div class="divider"></div>
+   464|    <div class="section-label">Advanced</div>
+   465|
+   466|    <div class="control-group">
+   467|      <div class="control-label">Max Parallel <span class="control-value" id="maxParVal">5</span></div>
+   468|      <input type="range" min="1" max="10" value="5" id="maxParSlider" oninput="setState('maxParallel', +this.value)">
+   469|    </div>
+   470|
+   471|    <div class="control-group">
+   472|      <div class="control-label">Timeout <span class="control-value" id="timeoutVal">30s</span></div>
+   473|      <input type="range" min="5" max="120" value="30" id="timeoutSlider" oninput="setState('timeout', +this.value)">
+   474|    </div>
+   475|
+   476|    <div class="control-group">
+   477|      <div class="control-label">Network</div>
+   478|      <div class="radio-group" id="networkGroup">
+   479|        <div class="radio-opt selected" data-val="testnet" onclick="setRadio('network','testnet')"><div class="radio-dot"></div>testnet</div>
+   480|        <div class="radio-opt" data-val="mainnet" data-needs="pro" onclick="setRadio('network','mainnet')"><div class="radio-dot"></div>mainnet <span class="lock-icon">&#128274;</span><span class="tooltip">Upgrade to Pro &mdash; $49/mo</span></div>
+   481|      </div>
+   482|    </div>
+   483|  </div>
+   484|
+   485|  <!-- Stage -->
+   486|  <div class="stage">
+   487|    <div class="animation-area" id="animArea">
+   488|      <div class="phase-label" id="phaseLabel"></div>
+   489|      <div class="stage-placeholder" id="placeholder">
+   490|        <div class="stage-placeholder-title">&#9671; Click SPAWN to begin &#9671;</div>
+   491|        <div class="stage-placeholder-sub" id="configSummary">5 agents &middot; parallel &middot; fast tier</div>
+   492|      </div>
+   493|      <div class="agents-container" id="agentsContainer" style="display:none;"></div>
+   494|      <div class="summary-stats" id="summaryStats"></div>
+   495|      <div class="hedera-line" id="hederaLine">HCS &#8594; Topic <span class="topic">0.0.4847291</span> &middot; Seq #<span id="hederaSeq">1</span></div>
+   496|      <div class="scrubber-container" id="scrubberWrap">
+   497|        <div class="scrubber-labels">
+   498|          <span class="scrubber-label" data-phase="0" onclick="scrubTo(0)">Enforce</span>
+   499|          <span class="scrubber-label" data-phase="1" onclick="scrubTo(1)">Route</span>
+   500|          <span class="scrubber-label" data-phase="2" onclick="scrubTo(2)">Birth</span>
+   501|
