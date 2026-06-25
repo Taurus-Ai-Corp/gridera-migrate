@@ -1,25 +1,25 @@
-[package]
-name = "swarm-spawner"
-version = "0.1.0"
-edition = "2021"
-description = "Ephemeral AI agent orchestration with Hedera blockchain auditability"
-authors = ["TAURUS AI Corp <admin@taurusai.io>"]
-license = "MIT"
-repository = "https://github.com/taurus-ai/swarm-spawner"
-
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1", features = ["full"] }
-chrono = "0.4"
-
-[dev-dependencies]
-tokio-test = "0.4"
-
-[lib]
-name = "swarm_spawner"
-path = "src/lib.rs"
-
-[[bin]]
-name = "swarm-spawner"
-path = "src/main.rs"
+     1|[package]
+     2|name = "gridera-migrate"
+     3|version = "0.1.0"
+     4|edition = "2021"
+     5|description = "Ephemeral AI agent orchestration with Hedera blockchain auditability"
+     6|authors = ["TAURUS AI Corp <admin@taurusai.io>"]
+     7|license = "MIT"
+     8|repository = "https://github.com/Taurus-Ai-Corp/gridera-migrate"
+     9|
+    10|[dependencies]
+    11|serde = { version = "1.0", features = ["derive"] }
+    12|serde_json = "1.0"
+    13|tokio = { version = "1", features = ["full"] }
+    14|chrono = "0.4"
+    15|
+    16|[dev-dependencies]
+    17|tokio-test = "0.4"
+    18|
+    19|[lib]
+    20|name = "gridera_migrate"
+    21|path = "src/lib.rs"
+    22|
+    23|[[bin]]
+    24|name = "gridera-migrate"
+    25|path = "src/main.rs"
