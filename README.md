@@ -1,25 +1,25 @@
-# Swarm Spawner
+# GRIDERA Migrate
 
 **Every AI agent gets a quantum-safe identity, an immutable audit trail, and a Hedera wallet.**
 
 Spawn. Certify. Execute. Sign. Audit. Die.
 
 <p align="center">
-  <img src="demo.gif" alt="Swarm Spawner Demo" width="900" />
+  <img src="demo.gif" alt="GRIDERA Migrate Demo" width="900" />
 </p>
 
-[![npm version](https://img.shields.io/npm/v/@taurus-ai/swarm-spawner)](https://www.npmjs.com/package/@taurus-ai/swarm-spawner)
+[![npm version](https://img.shields.io/npm/v/@gridera/migrate)](https://www.npmjs.com/package/@gridera/migrate)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/Taurus-Ai-Corp/swarm-spawner/actions/workflows/ci.yml/badge.svg)](https://github.com/Taurus-Ai-Corp/swarm-spawner/actions/workflows/ci.yml)
+[![CI](https://github.com/Taurus-Ai-Corp/gridera-migrate/actions/workflows/ci.yml/badge.svg)](https://github.com/Taurus-Ai-Corp/gridera-migrate/actions/workflows/ci.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-first-blue)]()
-[![codecov](https://codecov.io/gh/Taurus-Ai-Corp/swarm-spawner/graph/badge.svg)](https://codecov.io/gh/Taurus-Ai-Corp/swarm-spawner)
-[![Try it live](https://img.shields.io/badge/Playground-Try_it_live-00ffa3?style=for-the-badge)](https://taurus-ai-corp.github.io/swarm-spawner/)
+[![codecov](https://codecov.io/gh/Taurus-Ai-Corp/gridera-migrate/graph/badge.svg)](https://codecov.io/gh/Taurus-Ai-Corp/gridera-migrate)
+[![Try it live](https://img.shields.io/badge/Playground-Try_it_live-00ffa3?style=for-the-badge)](https://taurus-ai-corp.github.io/gridera-migrate/)
 
 ---
 
 ## Interactive Playground
 
-**[Try the playground](https://taurus-ai-corp.github.io/swarm-spawner/)** — spawn PQC-certified agents in your browser with real ML-DSA-65 cryptography. No backend, no API keys, no signup.
+**[Try the playground](https://taurus-ai-corp.github.io/gridera-migrate/)** — spawn PQC-certified agents in your browser with real ML-DSA-65 cryptography. No backend, no API keys, no signup.
 
 - Configure tasks, strategy, model tiers, and pricing tiers
 - Watch the full lifecycle: ENFORCE -> ROUTE -> CERTIFY BIRTH -> EXECUTE -> CERTIFY DEATH -> AUDIT -> DIE
@@ -28,11 +28,11 @@ Spawn. Certify. Execute. Sign. Audit. Die.
 
 ---
 
-## Why Swarm Spawner?
+## Why GRIDERA Migrate?
 
 No other agent framework has all three:
 
-| Feature | Swarm Spawner | CrewAI | LangGraph | AutoGen | OpenAI Swarm |
+| Feature | GRIDERA Migrate | CrewAI | LangGraph | AutoGen | OpenAI Swarm |
 |---------|:---:|:---:|:---:|:---:|:---:|
 | Ephemeral agents (spawn & die) | **Yes** | No | No | No | Abandoned |
 | PQC identity (ML-DSA-65) | **Yes** | No | No | No | No |
@@ -48,11 +48,11 @@ No other agent framework has all three:
 ## Quick Start
 
 ```bash
-npm install @taurus-ai/swarm-spawner
+npm install @gridera/migrate
 ```
 
 ```typescript
-import { SwarmSpawner } from "@taurus-ai/swarm-spawner";
+import { SwarmSpawner } from "@gridera/migrate";
 
 const spawner = new SwarmSpawner({
   executor: async (agent, model) => {
@@ -90,10 +90,10 @@ Agents are born, execute one task, and die. No persistent state. No memory leaks
 
 ### Pluggable Model Executor
 
-Swarm Spawner doesn't lock you into any LLM provider. Pass your own executor:
+GRIDERA Migrate doesn't lock you into any LLM provider. Pass your own executor:
 
 ```typescript
-import { SwarmSpawner, type ModelExecutor } from "@taurus-ai/swarm-spawner";
+import { SwarmSpawner, type ModelExecutor } from "@gridera/migrate";
 
 // Use any LLM provider
 const executor: ModelExecutor = async (agent, config) => {
@@ -112,7 +112,7 @@ const spawner = new SwarmSpawner({ executor });
 Real post-quantum cryptography, not stubs. Every agent gets a quantum-safe identity:
 
 ```typescript
-import { PQCIdentityManager } from "@taurus-ai/swarm-spawner";
+import { PQCIdentityManager } from "@gridera/migrate";
 import { randomBytes } from "@noble/hashes/utils.js";
 
 const pqc = new PQCIdentityManager({ masterSeed: randomBytes(32) });
@@ -130,7 +130,7 @@ const isValid = PQCIdentityManager.verify(birthCert); // true
 Built-in licensing for Free / Pro / Enterprise:
 
 ```typescript
-import { TierEnforcer } from "@taurus-ai/swarm-spawner";
+import { TierEnforcer } from "@gridera/migrate";
 
 const enforcer = new TierEnforcer(); // no key = free tier
 enforcer.enforce({ type: "agentCount", count: 10 });
@@ -150,7 +150,7 @@ enforcer.enforce({ type: "agentCount", count: 10 });
 The `ModelRouter` uses round-robin selection within each tier:
 
 ```typescript
-import { ModelRouter } from "@taurus-ai/swarm-spawner";
+import { ModelRouter } from "@gridera/migrate";
 
 const router = new ModelRouter();
 const model = router.selectModel("deep"); // rotates through deep-tier models
@@ -230,9 +230,9 @@ PQC_MASTER_SEED=<32-byte-hex>  # for PQC identity
 
 - [x] **v0.1.0** — Core spawner, model router, Hedera integration
 - [x] **v0.2.0** — Pluggable executor, PQC identity (ML-DSA-65), tier enforcement
-- [ ] **v0.3.0** — AI SDK adapter (`@taurus-ai/swarm-spawner-ai-sdk`), `npx init` CLI
+- [ ] **v0.3.0** — AI SDK adapter (`@gridera/migrate-ai-sdk`), `npx init` CLI
 - [ ] **v0.4.0** — EU AI Act compliance reports, topic-per-swarm audit
-- [x] **v0.5.0** — Interactive playground with real PQC crypto ([live](https://taurus-ai-corp.github.io/swarm-spawner/))
+- [x] **v0.5.0** — Interactive playground with real PQC crypto ([live](https://taurus-ai-corp.github.io/gridera-migrate/))
 
 ---
 
@@ -252,7 +252,7 @@ spawner.on("complete", (result) => console.log(`Swarm: ${result.successRate * 10
 
 ## Security
 
-All dependencies pass `npm audit` with **zero vulnerabilities**. Swarm Spawner uses:
+All dependencies pass `npm audit` with **zero vulnerabilities**. GRIDERA Migrate uses:
 
 - **ML-DSA-65** (NIST FIPS 204) via `@noble/post-quantum` for all cryptographic operations
 - **Hiero SDK** (`@hiero-ledger/sdk`) for Hedera HCS audit trails — migrated from the deprecated `@hashgraph/sdk` namespace
@@ -276,4 +276,4 @@ MIT License with Patent Notice — See [LICENSE](LICENSE) for details.
 
 ---
 
-**TAURUS AI Corp** | [GitHub](https://github.com/Taurus-Ai-Corp/swarm-spawner) | [npm](https://www.npmjs.com/package/@taurus-ai/swarm-spawner)
+**TAURUS AI Corp** | [GitHub](https://github.com/Taurus-Ai-Corp/gridera-migrate) | [npm](https://www.npmjs.com/package/@gridera/migrate)
