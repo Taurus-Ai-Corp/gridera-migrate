@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * CLI for Swarm Spawner — scaffolds a project with config + example.
- * Usage: npx @taurus-ai/swarm-spawner init
+ * CLI for GRIDERA Migrate — scaffolds a project with config + example.
+ * Usage: npx @gridera/migrate init
  */
 
 import { writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -22,13 +22,13 @@ function log(msg: string) {
 function banner() {
   log("");
   log(`${BOLD}${CYAN}  ╔═══════════════════════════════════════╗${RESET}`);
-  log(`${BOLD}${CYAN}  ║        🐝  Swarm Spawner  🐝          ║${RESET}`);
+  log(`${BOLD}${CYAN}  ║        🐝  GRIDERA Migrate  🐝          ║${RESET}`);
   log(`${BOLD}${CYAN}  ║  Ephemeral AI Agents + PQC + Hedera   ║${RESET}`);
   log(`${BOLD}${CYAN}  ╚═══════════════════════════════════════╝${RESET}`);
   log("");
 }
 
-const EXAMPLE_TS = `import { SwarmSpawner, type ModelExecutor } from "@taurus-ai/swarm-spawner";
+const EXAMPLE_TS = `import { SwarmSpawner, type ModelExecutor } from "@gridera/migrate";
 
 // Bring your own LLM — replace this with your provider
 const executor: ModelExecutor = async (agent, config) => {
@@ -46,7 +46,7 @@ const executor: ModelExecutor = async (agent, config) => {
 const spawner = new SwarmSpawner({
   executor,
   enableAuditTrail: false, // set true + HEDERA_OPERATOR_ID for blockchain audit
-  // licenseKey: "...",    // Pro tier — get at swarm-spawner.dev/pricing
+  // licenseKey: "...",    // Pro tier — get at migrate.gridera.net/pricing
 });
 
 async function main() {
@@ -78,7 +78,7 @@ const EXAMPLE_PQC = `import {
   SwarmSpawner,
   PQCIdentityManager,
   LicenseManager,
-} from "@taurus-ai/swarm-spawner";
+} from "@gridera/migrate";
 
 async function main() {
 // Generate a PQC key pair (do this ONCE, store securely)
@@ -195,7 +195,7 @@ function init(cwd: string) {
   log(`  ${CYAN}Edit src/example.ts → replace the executor function${RESET}`);
   log("");
   log(`${DIM}  # Get a Pro license for PQC signing + mainnet${RESET}`);
-  log(`  ${CYAN}https://swarm-spawner.dev/pricing${RESET}`);
+  log(`  ${CYAN}https://migrate.gridera.net/pricing${RESET}`);
   log("");
 }
 
@@ -209,10 +209,10 @@ if (command === "init") {
 } else if (command === "demo") {
   log("Running demo... Use 'npx tsx src/example.ts' after init.");
 } else {
-  log(`${BOLD}@taurus-ai/swarm-spawner${RESET} — Ephemeral AI agents with PQC identity`);
+  log(`${BOLD}@gridera/migrate${RESET} — Ephemeral AI agents with PQC identity`);
   log("");
   log("Commands:");
-  log(`  ${CYAN}npx @taurus-ai/swarm-spawner init${RESET}  Scaffold example project`);
+  log(`  ${CYAN}npx @gridera/migrate init${RESET}  Scaffold example project`);
   log("");
-  log("Docs: https://github.com/Taurus-Ai-Corp/swarm-spawner");
+  log("Docs: https://github.com/Taurus-Ai-Corp/gridera-migrate");
 }

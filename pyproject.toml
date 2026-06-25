@@ -1,49 +1,49 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "swarm-spawner"
-version = "0.1.0"
-description = "Ephemeral AI agent orchestration with Hedera blockchain auditability"
-readme = "README.md"
-license = {text = "MIT"}
-authors = [
-    {name = "TAURUS AI Corp", email = "admin@taurusai.io"}
-]
-keywords = ["ai", "agents", "orchestration", "ephemeral", "swarm", "hedera", "blockchain", "post-quantum"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-]
-requires-python = ">=3.10"
-dependencies = [
-    "event-emitter>=0.2.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "ruff>=0.1.0",
-]
-
-[project.urls]
-Homepage = "https://github.com/taurus-ai/swarm-spawner"
-Repository = "https://github.com/taurus-ai/swarm-spawner"
-
-[tool.setuptools.packages.find]
-where = ["."]
-
-[tool.ruff]
-line-length = 100
-target-version = "py310"
-
-[tool.pytest.ini_options]
-asyncio-mode = "auto"
-testpaths = ["tests"]
+     1|[build-system]
+     2|requires = ["setuptools>=61.0"]
+     3|build-backend = "setuptools.build_meta"
+     4|
+     5|[project]
+     6|name = "gridera-migrate"
+     7|version = "0.1.0"
+     8|description = "Ephemeral AI agent orchestration with Hedera blockchain auditability"
+     9|readme = "README.md"
+    10|license = {text = "MIT"}
+    11|authors = [
+    12|    {name = "TAURUS AI Corp", email = "admin@taurusai.io"}
+    13|]
+    14|keywords = ["ai", "agents", "orchestration", "ephemeral", "swarm", "hedera", "blockchain", "post-quantum"]
+    15|classifiers = [
+    16|    "Development Status :: 3 - Alpha",
+    17|    "Intended Audience :: Developers",
+    18|    "License :: OSI Approved :: MIT License",
+    19|    "Programming Language :: Python :: 3",
+    20|    "Programming Language :: Python :: 3.10",
+    21|    "Programming Language :: Python :: 3.11",
+    22|    "Programming Language :: Python :: 3.12",
+    23|]
+    24|requires-python = ">=3.10"
+    25|dependencies = [
+    26|    "event-emitter>=0.2.0",
+    27|]
+    28|
+    29|[project.optional-dependencies]
+    30|dev = [
+    31|    "pytest>=7.0.0",
+    32|    "pytest-asyncio>=0.21.0",
+    33|    "ruff>=0.1.0",
+    34|]
+    35|
+    36|[project.urls]
+    37|Homepage = "https://github.com/Taurus-Ai-Corp/gridera-migrate"
+    38|Repository = "https://github.com/Taurus-Ai-Corp/gridera-migrate"
+    39|
+    40|[tool.setuptools.packages.find]
+    41|where = ["."]
+    42|
+    43|[tool.ruff]
+    44|line-length = 100
+    45|target-version = "py310"
+    46|
+    47|[tool.pytest.ini_options]
+    48|asyncio-mode = "auto"
+    49|testpaths = ["tests"]

@@ -1,77 +1,77 @@
-{
-  "name": "swarm-spawner",
-  "displayName": "Swarm Spawner",
-  "description": "Ephemeral AI agent orchestration with Hedera blockchain auditability",
-  "version": "0.1.0",
-  "publisher": "taurus-ai",
-  "engines": {
-    "vscode": "^1.85.0"
-  },
-  "categories": [
-    "AI",
-    "Other"
-  ],
-  "activationEvents": [
-    "onCommand:swarm-spawner.spawn",
-    "onCommand:swarm-spawner.status"
-  ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "swarm-spawner.spawn",
-        "title": "Swarm: Spawn Agents",
-        "description": "Spawn ephemeral agents for selected task"
-      },
-      {
-        "command": "swarm-spawner.status",
-        "title": "Swarm: Status",
-        "description": "Show swarm execution status"
-      },
-      {
-        "command": "swarm-spawner.stop",
-        "title": "Swarm: Stop All",
-        "description": "Stop all running agents"
-      }
-    ],
-    "configuration": {
-      "title": "Swarm Spawner",
-      "properties": {
-        "swarmSpawner.maxParallel": {
-          "type": "number",
-          "default": 5,
-          "description": "Maximum parallel agents"
-        },
-        "swarmSpawner.timeout": {
-          "type": "number",
-          "default": 120000,
-          "description": "Agent timeout in milliseconds"
-        },
-        "swarmSpawner.enableAuditTrail": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable Hedera HCS audit trail"
-        },
-        "swarmSpawner.hederaNetwork": {
-          "type": "string",
-          "default": "testnet",
-          "enum": ["testnet", "mainnet"],
-          "description": "Hedera network"
-        }
-      }
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
-  },
-  "devDependencies": {
-    "@types/node": "^20.11.0",
-    "@types/vscode": "^1.85.0",
-    "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "@hiero-ledger/sdk": "^2.82.0"
-  }
-}
+     1|{
+     2|  "name": "gridera-migrate",
+     3|  "displayName": "GRIDERA Migrate",
+     4|  "description": "Ephemeral AI agent orchestration with Hedera blockchain auditability",
+     5|  "version": "0.1.0",
+     6|  "publisher": "taurus-ai",
+     7|  "engines": {
+     8|    "vscode": "^1.85.0"
+     9|  },
+    10|  "categories": [
+    11|    "AI",
+    12|    "Other"
+    13|  ],
+    14|  "activationEvents": [
+    15|    "onCommand:gridera-migrate.spawn",
+    16|    "onCommand:gridera-migrate.status"
+    17|  ],
+    18|  "main": "./out/extension.js",
+    19|  "contributes": {
+    20|    "commands": [
+    21|      {
+    22|        "command": "gridera-migrate.spawn",
+    23|        "title": "Swarm: Spawn Agents",
+    24|        "description": "Spawn ephemeral agents for selected task"
+    25|      },
+    26|      {
+    27|        "command": "gridera-migrate.status",
+    28|        "title": "Swarm: Status",
+    29|        "description": "Show swarm execution status"
+    30|      },
+    31|      {
+    32|        "command": "gridera-migrate.stop",
+    33|        "title": "Swarm: Stop All",
+    34|        "description": "Stop all running agents"
+    35|      }
+    36|    ],
+    37|    "configuration": {
+    38|      "title": "GRIDERA Migrate",
+    39|      "properties": {
+    40|        "swarmSpawner.maxParallel": {
+    41|          "type": "number",
+    42|          "default": 5,
+    43|          "description": "Maximum parallel agents"
+    44|        },
+    45|        "swarmSpawner.timeout": {
+    46|          "type": "number",
+    47|          "default": 120000,
+    48|          "description": "Agent timeout in milliseconds"
+    49|        },
+    50|        "swarmSpawner.enableAuditTrail": {
+    51|          "type": "boolean",
+    52|          "default": true,
+    53|          "description": "Enable Hedera HCS audit trail"
+    54|        },
+    55|        "swarmSpawner.hederaNetwork": {
+    56|          "type": "string",
+    57|          "default": "testnet",
+    58|          "enum": ["testnet", "mainnet"],
+    59|          "description": "Hedera network"
+    60|        }
+    61|      }
+    62|    }
+    63|  },
+    64|  "scripts": {
+    65|    "vscode:prepublish": "npm run compile",
+    66|    "compile": "tsc -p ./",
+    67|    "watch": "tsc -watch -p ./"
+    68|  },
+    69|  "devDependencies": {
+    70|    "@types/node": "^20.11.0",
+    71|    "@types/vscode": "^1.85.0",
+    72|    "typescript": "^5.3.3"
+    73|  },
+    74|  "dependencies": {
+    75|    "@hiero-ledger/sdk": "^2.82.0"
+    76|  }
+    77|}
